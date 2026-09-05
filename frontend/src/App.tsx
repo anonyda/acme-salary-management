@@ -1,6 +1,7 @@
-import { Activity, BarChart3, Users } from "lucide-react";
+import { Activity, BarChart3 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ApiError, checkHealth } from "@/api/client";
+import { EmployeeTable } from "@/components/EmployeeTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -100,19 +101,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const upcoming = [
-  {
-    icon: Users,
-    title: "Employee directory",
-    description: "Search, filter, and update 10,000+ salary records.",
-  },
-  {
-    icon: BarChart3,
-    title: "Pay analytics",
-    description: "Average salary and payroll cost by department and country.",
-  },
-] as const;
-
 export default function App() {
   const health = useHealthCheck();
 
@@ -173,19 +161,23 @@ export default function App() {
           </CardContent>
         </Card>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          {upcoming.map(({ icon: Icon, title, description }) => (
-            <Card key={title}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <Icon className="size-4 text-muted-foreground" />
-                  {title}
-                </CardTitle>
-                <CardDescription>{description}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold tracking-tight">Employees</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Search, filter, and browse the salary directory.</p>
+          <div className="mt-4">
+            <EmployeeTable />
+          </div>
+        </section>
+
+        <Card className="mt-6 border-dashed">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <BarChart3 className="size-4 text-muted-foreground" />
+              Pay analytics
+            </CardTitle>
+            <CardDescription>Average salary and payroll cost by department and country.</CardDescription>
+          </CardHeader>
+        </Card>
       </main>
     </div>
   );
