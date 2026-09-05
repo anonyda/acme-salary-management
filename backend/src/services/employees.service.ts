@@ -197,3 +197,15 @@ export function updateSalary(db: Database.Database, employeeId: number, input: U
 
   return getEmployeeById(db, employeeId) as EmployeeWithSalary;
 }
+
+export function deactivateEmployee(db: Database.Database, id: number): EmployeeWithSalary {
+  const result = db
+    .prepare("UPDATE employees SET status = 'inactive', updated_at = datetime('now') WHERE id = @id")
+    .run({ id });
+
+  if (result.changes === 0) {
+    throw new NotFoundError(`Employee ${id} not found`);
+  }
+
+  return getEmployeeById(db, id) as EmployeeWithSalary;
+}

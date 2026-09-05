@@ -139,4 +139,22 @@ describe("employees routes", () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe("DELETE /api/employees/:id", () => {
+    it("soft-deletes the employee by setting status to inactive", async () => {
+      const res = await request(app).delete("/api/employees/1");
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe("inactive");
+
+      const stillThere = await request(app).get("/api/employees/1");
+      expect(stillThere.status).toBe(200);
+      expect(stillThere.body.status).toBe("inactive");
+    });
+
+    it("returns 404 for an unknown employee id", async () => {
+      const res = await request(app).delete("/api/employees/999");
+      expect(res.status).toBe(404);
+    });
+  });
 });

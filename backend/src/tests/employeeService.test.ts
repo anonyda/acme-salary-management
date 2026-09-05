@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConnection } from "../db/connection.js";
 import {
   createEmployee,
+  deactivateEmployee,
   getEmployeeById,
   listEmployees,
   NotFoundError,
@@ -266,5 +267,38 @@ describe("updateSalary", () => {
 
   it("throws NotFoundError for an unknown employee id", () => {
     expect(() => updateSalary(db, 999, { amount: 2000000, currency: "INR" })).toThrow(NotFoundError);
+  });
+});
+
+describe("deactivateEmployee", () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = createConnection(":memory:");
+    db.prepare(`
+      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+    `).run();
+    db.prepare(`
+      INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+      VALUES (1, 1800000, 'INR', '2021-06-15', 1)
+    `).run();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("sets status to inactive without deleting the row", () => {
+    const employee = deactivateEmployee(db, 1);
+
+    expect(employee.status).toBe("inactive");
+
+    const rowCount = (db.prepare("SELECT COUNT(*) AS count FROM employees").get() as { count: number }).count;
+    expect(rowCount).toBe(1);
+  });
+
+  it("throws NotFoundError for an unknown employee id", () => {
+    expect(() => deactivateEmployee(db, 999)).toThrow(NotFoundError);
   });
 });
