@@ -7,6 +7,7 @@ import {
   getEmployeeById,
   listEmployees,
   NotFoundError,
+  updateEmployee,
   updateSalary,
   ValidationError,
 } from "../services/employees.service.js";
@@ -300,5 +301,51 @@ describe("deactivateEmployee", () => {
 
   it("throws NotFoundError for an unknown employee id", () => {
     expect(() => deactivateEmployee(db, 999)).toThrow(NotFoundError);
+  });
+});
+
+describe("updateEmployee", () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = createConnection(":memory:");
+    db.prepare(`
+      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+    `).run();
+    db.prepare(`
+      INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+      VALUES (1, 1800000, 'INR', '2021-06-15', 1)
+    `).run();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("updates the provided profile fields and leaves the rest unchanged", () => {
+    const employee = updateEmployee(db, 1, { full_name: "Nina R. Patel", department: "Operations" });
+
+    expect(employee.full_name).toBe("Nina R. Patel");
+    expect(employee.department).toBe("Operations");
+    expect(employee.title).toBe("Financial Analyst");
+    expect(employee.email).toBe("nina.patel@acme.test");
+  });
+
+  it("supports a partial update of a single field", () => {
+    const employee = updateEmployee(db, 1, { email: "nina.updated@acme.test" });
+
+    expect(employee.email).toBe("nina.updated@acme.test");
+    expect(employee.full_name).toBe("Nina Patel");
+  });
+
+  it("ignores status and salary fields, even if included in the input", () => {
+    const employee = updateEmployee(db, 1, { status: "inactive", full_name: "Nina Patel" } as any);
+
+    expect(employee.status).toBe("active");
+  });
+
+  it("throws NotFoundError for an unknown employee id", () => {
+    expect(() => updateEmployee(db, 999, { full_name: "Nobody" })).toThrow(NotFoundError);
   });
 });

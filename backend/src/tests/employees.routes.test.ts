@@ -157,4 +157,29 @@ describe("employees routes", () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe("PATCH /api/employees/:id", () => {
+    it("updates the provided profile fields", async () => {
+      const res = await request(app).patch("/api/employees/1").send({ department: "Operations" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.department).toBe("Operations");
+      expect(res.body.full_name).toBe("Nina Patel");
+    });
+
+    it("ignores status and salary fields in the body", async () => {
+      const res = await request(app)
+        .patch("/api/employees/1")
+        .send({ status: "inactive", salary: { amount: 1, currency: "USD" } });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe("active");
+      expect(res.body.salary.amount).toBe(1800000);
+    });
+
+    it("returns 404 for an unknown employee id", async () => {
+      const res = await request(app).patch("/api/employees/999").send({ department: "Operations" });
+      expect(res.status).toBe(404);
+    });
+  });
 });

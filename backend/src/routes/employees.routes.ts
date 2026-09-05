@@ -6,12 +6,12 @@ import {
   getEmployeeById,
   listEmployees,
   NotFoundError,
+  updateEmployee,
   updateSalary,
   ValidationError,
 } from "../services/employees.service.js";
 
 // Thin HTTP layer only — parse request, call services/employees.service.ts, format response.
-// Still TODO: PATCH /:id (update profile fields).
 export function createEmployeesRouter(db: Database.Database): Router {
   const router = Router();
 
@@ -52,6 +52,25 @@ export function createEmployeesRouter(db: Database.Database): Router {
     } catch (err) {
       if (err instanceof ValidationError) {
         res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  router.patch("/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid employee id" });
+      return;
+    }
+
+    try {
+      const employee = updateEmployee(db, id, req.body);
+      res.json(employee);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        res.status(404).json({ error: err.message });
         return;
       }
       throw err;

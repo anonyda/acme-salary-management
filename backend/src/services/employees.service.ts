@@ -209,3 +209,41 @@ export function deactivateEmployee(db: Database.Database, id: number): EmployeeW
 
   return getEmployeeById(db, id) as EmployeeWithSalary;
 }
+
+// Deliberately excludes status (use deactivateEmployee) and salary fields
+// (use updateSalary) — those go through their own endpoints.
+const UPDATABLE_PROFILE_FIELDS = [
+  "full_name",
+  "email",
+  "department",
+  "title",
+  "level",
+  "country",
+  "manager_id",
+  "hire_date",
+] as const;
+
+export type UpdateEmployeeInput = Partial<Record<(typeof UPDATABLE_PROFILE_FIELDS)[number], unknown>>;
+
+export function updateEmployee(db: Database.Database, id: number, input: UpdateEmployeeInput): EmployeeWithSalary {
+  const fieldsToUpdate = UPDATABLE_PROFILE_FIELDS.filter((field) => field in input);
+
+  if (fieldsToUpdate.length === 0) {
+    if (!getEmployeeById(db, id)) {
+      throw new NotFoundError(`Employee ${id} not found`);
+    }
+    return getEmployeeById(db, id) as EmployeeWithSalary;
+  }
+
+  const setClause = fieldsToUpdate.map((field) => `${field} = @${field}`).join(", ");
+  const values: Record<string, unknown> = { id };
+  for (const field of fieldsToUpdate) values[field] = input[field];
+
+  const result = db.prepare(`UPDATE employees SET ${setClause}, updated_at = datetime('now') WHERE id = @id`).run(values);
+
+  if (result.changes === 0) {
+    throw new NotFoundError(`Employee ${id} not found`);
+  }
+
+  return getEmployeeById(db, id) as EmployeeWithSalary;
+}
