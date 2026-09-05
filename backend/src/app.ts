@@ -1,8 +1,8 @@
 import type Database from "better-sqlite3";
 import express from "express";
+import { createAnalyticsRouter } from "./routes/analytics.routes.js";
 import { createEmployeesRouter } from "./routes/employees.routes.js";
 
-// TODO: mount /api/analytics router here once implemented.
 export function createApp(db: Database.Database) {
   const app = express();
   app.use(express.json());
@@ -12,6 +12,7 @@ export function createApp(db: Database.Database) {
   });
 
   app.use("/api/employees", createEmployeesRouter(db));
+  app.use("/api/analytics", createAnalyticsRouter(db));
 
   return app;
 }
