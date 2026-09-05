@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConnection } from "../db/connection.js";
-import { getEmployeeById, listEmployees } from "../services/employees.service.js";
+import { createEmployee, getEmployeeById, listEmployees, ValidationError } from "../services/employees.service.js";
 
 // Small, deterministic fixture set (alphabetical by full_name, so
 // pagination slices below are predictable):
@@ -157,5 +157,58 @@ describe("getEmployeeById", () => {
 
   it("returns undefined for an unknown id", () => {
     expect(getEmployeeById(db, 999)).toBeUndefined();
+  });
+});
+
+describe("createEmployee", () => {
+  let db: Database.Database;
+
+  const validInput = {
+    full_name: "Priya Rao",
+    email: "priya.rao@acme.test",
+    department: "Engineering",
+    title: "Software Engineer",
+    level: "L2",
+    country: "US",
+    hire_date: "2023-09-01",
+    salary: { amount: 95000, currency: "USD" },
+  };
+
+  beforeEach(() => {
+    db = createConnection(":memory:");
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("creates an employee with an initial current salary", () => {
+    const employee = createEmployee(db, validInput) as any;
+
+    expect(employee).toMatchObject({
+      full_name: "Priya Rao",
+      email: "priya.rao@acme.test",
+      department: "Engineering",
+      salary: { amount: 95000, currency: "USD", effective_date: "2023-09-01" },
+    });
+    expect(employee.id).toBeTypeOf("number");
+
+    const stored = getEmployeeById(db, employee.id);
+    expect(stored).toEqual(employee);
+  });
+
+  it("rejects a non-positive salary amount", () => {
+    expect(() => createEmployee(db, { ...validInput, salary: { amount: 0, currency: "USD" } })).toThrow(
+      ValidationError,
+    );
+    expect(() => createEmployee(db, { ...validInput, salary: { amount: -500, currency: "USD" } })).toThrow(
+      ValidationError,
+    );
+  });
+
+  it("rejects an unsupported currency", () => {
+    expect(() =>
+      createEmployee(db, { ...validInput, salary: { amount: 95000, currency: "XXX" } }),
+    ).toThrow(ValidationError);
   });
 });

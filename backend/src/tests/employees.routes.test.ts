@@ -77,4 +77,41 @@ describe("employees routes", () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe("POST /api/employees", () => {
+    const validBody = {
+      full_name: "Priya Rao",
+      email: "priya.rao@acme.test",
+      department: "Engineering",
+      title: "Software Engineer",
+      level: "L2",
+      country: "US",
+      hire_date: "2023-09-01",
+      salary: { amount: 95000, currency: "USD" },
+    };
+
+    it("creates an employee and returns 201 with the created record", async () => {
+      const res = await request(app).post("/api/employees").send(validBody);
+
+      expect(res.status).toBe(201);
+      expect(res.body.full_name).toBe("Priya Rao");
+      expect(res.body.salary).toEqual({ amount: 95000, currency: "USD", effective_date: "2023-09-01" });
+    });
+
+    it("returns 400 for a non-positive salary amount", async () => {
+      const res = await request(app)
+        .post("/api/employees")
+        .send({ ...validBody, salary: { amount: 0, currency: "USD" } });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for an unsupported currency", async () => {
+      const res = await request(app)
+        .post("/api/employees")
+        .send({ ...validBody, salary: { amount: 95000, currency: "XXX" } });
+
+      expect(res.status).toBe(400);
+    });
+  });
 });

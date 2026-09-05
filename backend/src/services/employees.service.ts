@@ -108,3 +108,56 @@ export function getEmployeeById(db: Database.Database, id: number): EmployeeWith
         : null,
   };
 }
+
+export class ValidationError extends Error {}
+
+const SUPPORTED_CURRENCIES = ["USD", "GBP", "INR", "EUR"];
+
+export interface CreateEmployeeInput {
+  full_name: string;
+  email: string;
+  department: string;
+  title: string;
+  level: string;
+  country: string;
+  manager_id?: number | null;
+  hire_date: string;
+  salary: { amount: number; currency: string };
+}
+
+export function createEmployee(db: Database.Database, input: CreateEmployeeInput): EmployeeWithSalary {
+  if (!(input.salary.amount > 0)) {
+    throw new ValidationError("Salary amount must be positive");
+  }
+  if (!SUPPORTED_CURRENCIES.includes(input.salary.currency)) {
+    throw new ValidationError(`Currency must be one of ${SUPPORTED_CURRENCIES.join(", ")}`);
+  }
+
+  const { lastInsertRowid } = db
+    .prepare(
+      `INSERT INTO employees (full_name, email, department, title, level, country, manager_id, hire_date)
+       VALUES (@full_name, @email, @department, @title, @level, @country, @manager_id, @hire_date)`,
+    )
+    .run({
+      full_name: input.full_name,
+      email: input.email,
+      department: input.department,
+      title: input.title,
+      level: input.level,
+      country: input.country,
+      manager_id: input.manager_id ?? null,
+      hire_date: input.hire_date,
+    });
+
+  db.prepare(
+    `INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+     VALUES (@employee_id, @amount, @currency, @effective_date, 1)`,
+  ).run({
+    employee_id: lastInsertRowid,
+    amount: input.salary.amount,
+    currency: input.salary.currency,
+    effective_date: input.hire_date,
+  });
+
+  return getEmployeeById(db, Number(lastInsertRowid)) as EmployeeWithSalary;
+}

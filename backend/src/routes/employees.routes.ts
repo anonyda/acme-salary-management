@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { Router } from "express";
-import { getEmployeeById, listEmployees } from "../services/employees.service.js";
+import { createEmployee, getEmployeeById, listEmployees, ValidationError } from "../services/employees.service.js";
 
 // Thin HTTP layer only — parse request, call services/employees.service.ts, format response.
-// Still TODO: POST /, PATCH /:id, PATCH /:id/salary, DELETE /:id.
+// Still TODO: PATCH /:id, PATCH /:id/salary, DELETE /:id.
 export function createEmployeesRouter(db: Database.Database): Router {
   const router = Router();
 
@@ -35,6 +35,19 @@ export function createEmployeesRouter(db: Database.Database): Router {
       return;
     }
     res.json(employee);
+  });
+
+  router.post("/", (req, res) => {
+    try {
+      const employee = createEmployee(db, req.body);
+      res.status(201).json(employee);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
   });
 
   return router;
