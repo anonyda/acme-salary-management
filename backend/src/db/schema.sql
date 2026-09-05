@@ -31,3 +31,8 @@ CREATE TABLE IF NOT EXISTS salaries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_salaries_employee_id ON salaries(employee_id);
+
+-- Enforces "only one current salary per employee" (TRD section 6).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_salaries_one_current_per_employee
+  ON salaries(employee_id)
+  WHERE is_current = 1;
