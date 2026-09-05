@@ -8,20 +8,21 @@ Give ACME's HR Manager a web-based system to manage salary data for 10,000 emplo
 
 ## Scope & Features (In)
 - Employee CRUD: view, search, filter (department/country/level), create, update, soft-delete
-- Salary field per employee (amount + currency), editable with server-side validation
+- Salary field per employee (amount + currency), stored and edited in native currency, with server-side validation
 - Server-side pagination and search — required at this scale (10k+ rows)
-- Basic analytics: average salary & headcount by department; average salary & total payroll by country
-- Seed script generating 10,000 realistic employees across 4 countries, 6 departments, 5 levels
+- Analytics dashboard: KPI summary cards (total global payroll spend, active headcount, average salary, median salary), department and country breakdowns, salary distribution by country, interactive filters (department/country/role) — all aggregate figures normalized to USD via a seeded exchange-rate table
+- Seed script generating 10,000 realistic employees across 4 countries, 6 departments, 5 levels, plus a seeded exchange-rate table
 
 ## Deliberately Out of Scope (and why)
 
 | Cut | Reasoning |
 |---|---|
-| Authentication / RBAC | Out of domain for this exercise; assumed single trusted HR-admin. Would be first addition in production (SSO + role-based access), given salary data sensitivity. |
-| Salary history / audit trail | Only current salary stored. Schema is forward-compatible (salary is its own table, not a column), but tracking historical changes adds scope not required for v1. |
+| Authentication / RBAC | Out of domain for this exercise; app is internal and the user is an already-authorized, single HR Manager. Documented here as a future production consideration: would add SSO + role-based access, given salary data sensitivity. |
+| Salary history / audit trail | Only current salary stored per employee. Schema is forward-compatible (salary is its own table, not a column), but tracking historical revisions and merit-increase dates is deferred as a future enhancement. |
 | Bulk CSV import/export | High real-world value but orthogonal to demonstrating core engineering judgment in the time available. |
-| Currency conversion/normalization | Salaries reported per native currency. Cross-currency comparisons require exchange-rate sourcing and date-of-conversion decisions — flagged as a real gap, not ignored. |
-| Advanced analytics (pay equity, outlier detection) | Confirmed basic-tier scope (avg/total by dept & country). Deeper statistical analysis is valuable but a distinct, larger feature. |
+| Live/real-time exchange rates | Exchange rates are seeded as a fixed snapshot table rather than fetched from a live FX API — reasonable simplification for reporting purposes at this scope; a production system would refresh rates periodically and version them by date. |
+| Natural-language / AI query interface over pay data | Explicitly optional stretch scope. Predefined visual dashboards (KPIs + breakdowns + distribution) cover the core MVP; an NL query layer is a valuable but separate feature. |
+| Advanced pay-equity analytics (outlier detection, gap analysis) | Distribution-by-country and department/country breakdowns cover the core MVP. Deeper statistical fairness analysis is a distinct, larger feature. |
 | Notifications / approval workflows | Not needed for a single-admin tool at this scope. |
 
 ## Non-Functional Requirements
@@ -34,5 +35,7 @@ Give ACME's HR Manager a web-based system to manage salary data for 10,000 emplo
 - Departments: Engineering, Sales, Marketing, HR, Finance, Operations
 - Levels: L1–L5
 - Default pagination: 25 records/page
+- Base reporting currency: USD. Individual employee records display/edit in native currency; all aggregate analytics (KPIs, breakdowns, distributions) convert to USD using a seeded exchange-rate table (fixed snapshot rates, not live-fetched)
+- Median salary is computed in application code (sorted values per group), since SQLite has no native median aggregate
 
 Full technical detail: see `docs/TRD.md`.

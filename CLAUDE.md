@@ -48,7 +48,9 @@ Keep `routes` thin — they should parse the request, call a `services` function
 4. **Validate server-side**, regardless of client-side validation — salary amount must be positive, currency must be one of the supported set, employee must exist.
 5. **Server-side pagination always.** Never fetch the full employee table into the client. Default page size 25, configurable via query param, capped at a sane max (e.g., 100).
 6. **Soft delete only.** Setting an employee to `inactive` is a status update, not a row deletion.
-7. **Keep scope aligned with `docs/TRD.md` section 4.2 (out of scope).** Do not add auth, salary history, CSV import, or currency conversion unless explicitly asked — these are deliberate cuts, not oversights.
+7. **Keep scope aligned with `docs/TRD.md` section 4.2 (out of scope).** Do not add auth, salary history, or CSV import unless explicitly asked — these are deliberate cuts, not oversights. Note: currency normalization to USD for reporting IS in scope (see section 6/8.1) — don't confuse this with the cut items.
+8. **Median, not just average, in analytics.** SQLite has no native median aggregate — compute it in the service layer from sorted, USD-normalized values (see TRD 8.1). Write unit tests for odd/even-count and single/empty-group edge cases.
+9. **Native vs. normalized currency boundary.** Employee records always store/display/edit in native currency. Only the analytics/reporting layer converts to USD, using the seeded `ExchangeRate` table. Never mutate a stored salary's currency or amount during conversion — conversion is read-path only.
 
 ## AI Usage Logging
 

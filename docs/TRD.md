@@ -1,9 +1,9 @@
 # Technical Requirements Document (TRD)
 ## Employee Salary Management Software — ACME Org
 
-**Author:** [Your Name]
-**Date:** [Date]
-**Status:** Draft — assumptions documented below where clarification was pending
+**Author:** Nida Shaikh
+**Date:** 05/09/26
+**Status:** Complete - doubts clarified
 
 ---
 
@@ -42,11 +42,12 @@ This document specifies the technical design for a web-based Employee Salary Man
 
 | Cut | Reasoning |
 |---|---|
-| Authentication / RBAC | Assessment scope is the salary-management domain itself, not identity infrastructure. Assumed a single trusted HR-admin user. In production, this would be the first thing added (SSO + role-based access, since salary data is highly sensitive). |
-| Salary history / audit trail | Only current salary is stored. A real HR tool would need point-in-time history for compliance and raise-tracking, but this adds meaningful schema/UI complexity for a time-boxed exercise. Noted as the top "next feature" candidate. |
+| Authentication / RBAC | Confirmed out of scope by client: app is internal, user is an already-authorized, single HR Manager. Documented here as a future production consideration (SSO + role-based access), given salary data sensitivity. |
+| Salary history / audit trail | Confirmed out of scope by client: only current salary per employee is required. Schema remains forward-compatible (salary is its own table, not a column), but historical revision tracking and merit-increase dates are deferred as future enhancements. |
 | Bulk import/export (CSV/Excel) | High value in real use (this is literally what they're replacing) but orthogonal to demonstrating core engineering judgment; cut to protect time for correctness and tests. |
-| Currency conversion/normalization | Salaries are stored and reported in their native currency. Cross-currency comparison (e.g., normalizing to USD) requires exchange-rate data and decisions about which rate/date to use — flagged as a real gap, not silently ignored. |
-| Advanced analytics (pay equity/outlier detection) | Confirmed as basic-tier scope: avg/total by department and country only. Deeper statistical analysis (e.g., pay gap detection) is a distinct, valuable feature but out of scope here. |
+| Live/real-time exchange rates | Currency normalization to USD is in scope for reporting (see section 6/8), but rates are a seeded fixed snapshot rather than fetched from a live FX API — a reasonable simplification for this exercise. A production system would refresh and version rates by date. |
+| Natural-language / AI query interface | Confirmed strictly optional stretch scope by client. Predefined visual dashboards (KPIs, breakdowns, distribution) cover the core MVP. |
+| Advanced pay-equity analytics (outlier detection, gap analysis) | Core MVP is covered by KPI cards, department/country breakdowns, and salary distribution by country. Deeper statistical fairness analysis is a distinct, larger feature. |
 | Notifications, approval workflows | Not needed for a single-admin tool at this scope. |
 
 ## 5. Assumptions (to be reconciled with any client clarification)
@@ -81,9 +82,17 @@ Salary
 ├── effective_date
 ├── is_current        (boolean — only one current salary per employee)
 ├── created_at
+
+ExchangeRate
+├── id (PK)
+├── currency          (GBP | INR | EUR — non-base currencies; USD is the base, rate = 1 implicitly)
+├── rate_to_usd
+├── as_of_date
 ```
 
 Salary is a separate table (not a column on Employee) even though history isn't a v1 feature — this keeps the schema forward-compatible with salary history at near-zero extra cost now, versus a painful migration later.
+
+`ExchangeRate` is seeded as a fixed snapshot (not fetched live) — individual employee records always display and edit in native currency; conversion to the USD base reporting currency happens only at the analytics/aggregation layer, using the latest seeded rate per currency.
 
 ## 7. API Design
 
@@ -95,7 +104,7 @@ Salary is a separate table (not a column on Employee) even though history isn't 
 | PATCH | `/api/employees/:id` | Update employee profile fields |
 | PATCH | `/api/employees/:id/salary` | Update current salary (validates positive amount, valid currency) |
 | DELETE | `/api/employees/:id` | Soft-delete (sets status = inactive) |
-| GET | `/api/analytics/summary` | Avg salary & headcount by department; avg salary & total payroll by country |
+| GET | `/api/analytics/summary?department=&country=&level=` | KPI cards (total global payroll spend, active headcount, average salary, median salary — all normalized to USD), department breakdown (avg/median/headcount), country breakdown (avg/median/total payroll), salary distribution buckets by country. Accepts optional filters that scope all figures. |
 
 Response envelope for list endpoints includes `{ data, page, limit, total }` to support pagination UI.
 
@@ -113,6 +122,12 @@ Response envelope for list endpoints includes `{ data, page, limit, total }` to 
 - **Service layer** (`/services`) separates business logic (pagination, validation, aggregation queries) from HTTP routing, so core logic is unit-testable without spinning up a server — supports fast, deterministic tests.
 - **Raw SQL via `better-sqlite3`** instead of an ORM: at this scale (10k rows, single-writer, read-heavy) an ORM adds abstraction overhead without meaningful benefit; raw SQL keeps query performance/behavior transparent and easy to reason about.
 
+## 8.1 Analytics Implementation Notes
+
+- **Currency normalization:** `analyticsService` joins each salary's currency against `ExchangeRate` and converts to USD before any aggregation. Native-currency values are never altered — normalization happens only in the read path for reporting.
+- **Median calculation:** SQLite has no native `MEDIAN()`/`PERCENTILE_CONT` aggregate. Rather than approximate it in SQL, the service layer fetches sorted USD-normalized amounts per group and computes the median in TypeScript. This keeps the SQL simple and the median logic independently unit-testable (odd/even count cases, single-record groups, empty groups).
+- **Salary distribution by country:** implemented as bucketed histogram data (fixed USD bands, e.g., $0–40k, $40–80k, etc.) per country, so the frontend can render a comparable distribution chart across countries despite different native pay scales.
+
 ## 9. Non-Functional Requirements
 
 - Employee list queries must remain responsive (<300ms server-side) at 10k rows via proper indexing (on `department`, `country`, `email`) and server-side pagination — never load the full dataset into the client.
@@ -128,7 +143,8 @@ Response envelope for list endpoints includes `{ data, page, limit, total }` to 
 ## 11. Seed Data
 
 - `@faker-js/faker` generates 10,000 employees distributed realistically across the 4 countries, 6 departments, and 5 levels.
-- Salaries generated from a per-country/per-level base band with variance, so analytics views (avg by department/country) produce believable, non-uniform results in the demo — not flat/random noise.
+- Salaries generated from a per-country/per-level base band with variance, so analytics views (avg/median by department/country) produce believable, non-uniform results in the demo — not flat/random noise.
+- `ExchangeRate` table seeded with fixed, realistic snapshot rates for GBP, INR, and EUR to USD.
 
 ## 12. Deliverables Checklist
 
