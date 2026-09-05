@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConnection } from "../db/connection.js";
-import { listEmployees } from "../services/employees.service.js";
+import { getEmployeeById, listEmployees } from "../services/employees.service.js";
 
 // Small, deterministic fixture set (alphabetical by full_name, so
 // pagination slices below are predictable):
@@ -116,5 +116,46 @@ describe("listEmployees", () => {
 
     expect(result.total).toBe(2);
     expect(result.data.map((e: any) => e.full_name)).toEqual(["Alice Johnson", "Grace Hopper"]);
+  });
+});
+
+describe("getEmployeeById", () => {
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = createConnection(":memory:");
+    db.prepare(`
+      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+    `).run();
+    db.prepare(`
+      INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+      VALUES (1, 1800000, 'INR', '2021-06-15', 1)
+    `).run();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("returns the employee merged with their current salary", () => {
+    const employee = getEmployeeById(db, 1) as any;
+
+    expect(employee).toMatchObject({
+      id: 1,
+      full_name: "Nina Patel",
+      email: "nina.patel@acme.test",
+      department: "Finance",
+      country: "IN",
+      salary: {
+        amount: 1800000,
+        currency: "INR",
+        effective_date: "2021-06-15",
+      },
+    });
+  });
+
+  it("returns undefined for an unknown id", () => {
+    expect(getEmployeeById(db, 999)).toBeUndefined();
   });
 });

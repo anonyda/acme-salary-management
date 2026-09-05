@@ -57,3 +57,54 @@ export function listEmployees(db: Database.Database, params: ListEmployeesParams
 
   return { data, page, limit, total };
 }
+
+export interface CurrentSalary {
+  amount: number;
+  currency: string;
+  effective_date: string;
+}
+
+export interface EmployeeWithSalary {
+  id: number;
+  full_name: string;
+  email: string;
+  department: string;
+  title: string;
+  level: string;
+  country: string;
+  manager_id: number | null;
+  hire_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  salary: CurrentSalary | null;
+}
+
+export function getEmployeeById(db: Database.Database, id: number): EmployeeWithSalary | undefined {
+  const row = db
+    .prepare(
+      `SELECT e.*, s.amount AS salary_amount, s.currency AS salary_currency, s.effective_date AS salary_effective_date
+       FROM employees e
+       LEFT JOIN salaries s ON s.employee_id = e.id AND s.is_current = 1
+       WHERE e.id = @id`,
+    )
+    .get({ id }) as
+    | (Record<string, unknown> & {
+        salary_amount: number | null;
+        salary_currency: string | null;
+        salary_effective_date: string | null;
+      })
+    | undefined;
+
+  if (!row) return undefined;
+
+  const { salary_amount, salary_currency, salary_effective_date, ...employee } = row;
+
+  return {
+    ...(employee as Omit<EmployeeWithSalary, "salary">),
+    salary:
+      salary_amount != null
+        ? { amount: salary_amount, currency: salary_currency as string, effective_date: salary_effective_date as string }
+        : null,
+  };
+}
