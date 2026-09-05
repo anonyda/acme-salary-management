@@ -22,6 +22,16 @@ const CURRENCY_BY_COUNTRY: Record<Country, string> = {
   DE: "EUR",
 };
 
+// Fixed snapshot rates for USD-normalized reporting (TRD section 6/8.1) —
+// not fetched from a live FX API. USD itself is the base and isn't stored
+// (see schema.sql). Approximate, illustrative rates, not sourced market data.
+const EXCHANGE_RATES: { currency: "GBP" | "INR" | "EUR"; rateToUsd: number }[] = [
+  { currency: "GBP", rateToUsd: 1.27 },
+  { currency: "EUR", rateToUsd: 1.09 },
+  { currency: "INR", rateToUsd: 0.012 },
+];
+const EXCHANGE_RATE_AS_OF_DATE = "2026-01-01";
+
 // [min, max] annual base salary in the country's native currency, per level.
 // Approximate market bands, not sourced payroll data — chosen so the
 // analytics views (avg by department/country) show believable, non-flat
@@ -138,7 +148,7 @@ function pickManagerId(department: Department, level: Level, pools: ManagerPools
   return faker.helpers.arrayElement(candidates);
 }
 
-export function seedDatabase(db: Database.Database, count: number): void {
+function seedEmployeesAndSalaries(db: Database.Database, count: number): void {
   db.exec("DELETE FROM salaries; DELETE FROM employees; DELETE FROM sqlite_sequence WHERE name IN ('employees', 'salaries');");
 
   const insertEmployee = db.prepare(`
@@ -192,6 +202,37 @@ export function seedDatabase(db: Database.Database, count: number): void {
   seedAll(count);
 }
 
+// Always replaces the 3 rows with fresh fixed-snapshot values — safe to
+// call on every seed run, whether or not employee seeding ran this time.
+function upsertExchangeRates(db: Database.Database): void {
+  const deleteExisting = db.prepare("DELETE FROM exchange_rates WHERE currency = @currency");
+  const insert = db.prepare(`
+    INSERT INTO exchange_rates (currency, rate_to_usd, as_of_date)
+    VALUES (@currency, @rateToUsd, @asOfDate)
+  `);
+
+  const upsertAll = db.transaction(() => {
+    for (const { currency, rateToUsd } of EXCHANGE_RATES) {
+      deleteExisting.run({ currency });
+      insert.run({ currency, rateToUsd, asOfDate: EXCHANGE_RATE_AS_OF_DATE });
+    }
+  });
+
+  upsertAll();
+}
+
+export function seedDatabase(db: Database.Database, count: number): void {
+  const existingEmployeeCount = (db.prepare("SELECT COUNT(*) AS n FROM employees").get() as { n: number }).n;
+
+  if (existingEmployeeCount >= count) {
+    console.log(`Employees table already has ${existingEmployeeCount} rows (>= ${count}) — skipping employee/salary seeding.`);
+  } else {
+    seedEmployeesAndSalaries(db, count);
+  }
+
+  upsertExchangeRates(db);
+}
+
 const isMainModule = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMainModule) {
@@ -203,5 +244,5 @@ if (isMainModule) {
   seedDatabase(db, EMPLOYEE_COUNT);
   db.close();
 
-  console.log(`Seeded ${EMPLOYEE_COUNT} employees in ${Date.now() - start}ms → ${DB_PATH}`);
+  console.log(`Seed run complete in ${Date.now() - start}ms → ${DB_PATH}`);
 }
