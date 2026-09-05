@@ -114,4 +114,29 @@ describe("employees routes", () => {
       expect(res.status).toBe(400);
     });
   });
+
+  describe("PATCH /api/employees/:id/salary", () => {
+    it("updates the current salary and returns the employee", async () => {
+      const res = await request(app).patch("/api/employees/1/salary").send({ amount: 2000000, currency: "INR" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.salary.amount).toBe(2000000);
+      expect(res.body.salary.currency).toBe("INR");
+    });
+
+    it("returns 400 for a non-positive salary amount", async () => {
+      const res = await request(app).patch("/api/employees/1/salary").send({ amount: -1, currency: "INR" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for an unsupported currency", async () => {
+      const res = await request(app).patch("/api/employees/1/salary").send({ amount: 2000000, currency: "XXX" });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for an unknown employee id", async () => {
+      const res = await request(app).patch("/api/employees/999/salary").send({ amount: 2000000, currency: "INR" });
+      expect(res.status).toBe(404);
+    });
+  });
 });

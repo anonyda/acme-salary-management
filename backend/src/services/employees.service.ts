@@ -161,3 +161,39 @@ export function createEmployee(db: Database.Database, input: CreateEmployeeInput
 
   return getEmployeeById(db, Number(lastInsertRowid)) as EmployeeWithSalary;
 }
+
+export class NotFoundError extends Error {}
+
+export interface UpdateSalaryInput {
+  amount: number;
+  currency: string;
+}
+
+export function updateSalary(db: Database.Database, employeeId: number, input: UpdateSalaryInput): EmployeeWithSalary {
+  if (!(input.amount > 0)) {
+    throw new ValidationError("Salary amount must be positive");
+  }
+  if (!SUPPORTED_CURRENCIES.includes(input.currency)) {
+    throw new ValidationError(`Currency must be one of ${SUPPORTED_CURRENCIES.join(", ")}`);
+  }
+
+  const employee = db.prepare("SELECT id FROM employees WHERE id = @id").get({ id: employeeId });
+  if (!employee) {
+    throw new NotFoundError(`Employee ${employeeId} not found`);
+  }
+
+  const effectiveDate = new Date().toISOString().slice(0, 10);
+
+  const applyUpdate = db.transaction(() => {
+    db.prepare("UPDATE salaries SET is_current = 0 WHERE employee_id = @employeeId AND is_current = 1").run({
+      employeeId,
+    });
+    db.prepare(
+      `INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+       VALUES (@employeeId, @amount, @currency, @effectiveDate, 1)`,
+    ).run({ employeeId, amount: input.amount, currency: input.currency, effectiveDate });
+  });
+  applyUpdate();
+
+  return getEmployeeById(db, employeeId) as EmployeeWithSalary;
+}

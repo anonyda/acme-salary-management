@@ -1,7 +1,14 @@
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConnection } from "../db/connection.js";
-import { createEmployee, getEmployeeById, listEmployees, ValidationError } from "../services/employees.service.js";
+import {
+  createEmployee,
+  getEmployeeById,
+  listEmployees,
+  NotFoundError,
+  updateSalary,
+  ValidationError,
+} from "../services/employees.service.js";
 
 // Small, deterministic fixture set (alphabetical by full_name, so
 // pagination slices below are predictable):
@@ -210,5 +217,54 @@ describe("createEmployee", () => {
     expect(() =>
       createEmployee(db, { ...validInput, salary: { amount: 95000, currency: "XXX" } }),
     ).toThrow(ValidationError);
+  });
+});
+
+describe("updateSalary", () => {
+  let db: Database.Database;
+  const today = new Date().toISOString().slice(0, 10);
+
+  beforeEach(() => {
+    db = createConnection(":memory:");
+    db.prepare(`
+      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+    `).run();
+    db.prepare(`
+      INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+      VALUES (1, 1800000, 'INR', '2021-06-15', 1)
+    `).run();
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("inserts a new current salary and expires the old one, dated today", () => {
+    const employee = updateSalary(db, 1, { amount: 2000000, currency: "INR" });
+
+    expect(employee.salary).toEqual({ amount: 2000000, currency: "INR", effective_date: today });
+
+    const salaryRows = db.prepare("SELECT amount, is_current FROM salaries WHERE employee_id = 1 ORDER BY id").all();
+    expect(salaryRows).toEqual([
+      { amount: 1800000, is_current: 0 },
+      { amount: 2000000, is_current: 1 },
+    ]);
+  });
+
+  it("rejects a non-positive salary amount and leaves the current salary unchanged", () => {
+    expect(() => updateSalary(db, 1, { amount: 0, currency: "INR" })).toThrow(ValidationError);
+    expect(() => updateSalary(db, 1, { amount: -100, currency: "INR" })).toThrow(ValidationError);
+
+    const employee = getEmployeeById(db, 1);
+    expect(employee?.salary?.amount).toBe(1800000);
+  });
+
+  it("rejects an unsupported currency", () => {
+    expect(() => updateSalary(db, 1, { amount: 2000000, currency: "XXX" })).toThrow(ValidationError);
+  });
+
+  it("throws NotFoundError for an unknown employee id", () => {
+    expect(() => updateSalary(db, 999, { amount: 2000000, currency: "INR" })).toThrow(NotFoundError);
   });
 });
