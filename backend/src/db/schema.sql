@@ -36,3 +36,18 @@ CREATE INDEX IF NOT EXISTS idx_salaries_employee_id ON salaries(employee_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_salaries_one_current_per_employee
   ON salaries(employee_id)
   WHERE is_current = 1;
+
+-- Seeded fixed-snapshot rates for reporting-layer USD normalization (TRD
+-- section 6/8.1). USD itself is the base (implicit rate of 1) and is
+-- deliberately not stored here. Insert-only, like salaries — a later
+-- as_of_date supersedes older rows for the same currency rather than
+-- updating in place.
+CREATE TABLE IF NOT EXISTS exchange_rates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  currency TEXT NOT NULL CHECK (currency IN ('GBP', 'INR', 'EUR')),
+  rate_to_usd REAL NOT NULL,
+  as_of_date TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_exchange_rates_currency ON exchange_rates(currency);
