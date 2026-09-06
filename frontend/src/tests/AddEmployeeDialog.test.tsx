@@ -16,6 +16,7 @@ const createdEmployee: Employee = {
   id: 42,
   full_name: "Priya Rao",
   email: "priya.rao@acme.test",
+  gender: "Female",
   department: "Engineering",
   title: "Software Engineer",
   level: "L2",
@@ -32,6 +33,7 @@ describe("validateCreateEmployeeForm", () => {
   const validValues = {
     fullName: "Priya Rao",
     email: "priya.rao@acme.test",
+    gender: "Female",
     title: "Software Engineer",
     department: "Engineering",
     country: "US",
@@ -49,6 +51,7 @@ describe("validateCreateEmployeeForm", () => {
     const errors = validateCreateEmployeeForm({
       fullName: "",
       email: "",
+      gender: "",
       title: "",
       department: "",
       country: "",
@@ -59,7 +62,7 @@ describe("validateCreateEmployeeForm", () => {
     });
 
     expect(Object.keys(errors).sort()).toEqual(
-      ["fullName", "email", "title", "department", "country", "level", "hireDate", "salaryAmount", "salaryCurrency"].sort(),
+      ["fullName", "email", "gender", "title", "department", "country", "level", "hireDate", "salaryAmount", "salaryCurrency"].sort(),
     );
   });
 
@@ -98,6 +101,7 @@ describe("AddEmployeeDialog", () => {
 
     expect(await screen.findByText("Full name is required.")).toBeInTheDocument();
     expect(screen.getByText("Email is required.")).toBeInTheDocument();
+    expect(screen.getByText("Select a gender.")).toBeInTheDocument();
     expect(screen.getByText("Title is required.")).toBeInTheDocument();
     expect(screen.getByText("Select a department.")).toBeInTheDocument();
     expect(screen.getByText("Select a country.")).toBeInTheDocument();
@@ -115,6 +119,8 @@ describe("AddEmployeeDialog", () => {
     await user.type(screen.getByLabelText("Email"), "priya.rao@acme.test");
     await user.type(screen.getByLabelText("Title"), "Software Engineer");
 
+    await user.click(screen.getByLabelText("Gender"));
+    await user.click(await screen.findByRole("option", { name: "Female" }));
     await user.click(screen.getByLabelText("Department"));
     await user.click(await screen.findByRole("option", { name: "Engineering" }));
     await user.click(screen.getByLabelText("Country"));
@@ -133,6 +139,7 @@ describe("AddEmployeeDialog", () => {
       expect(mockedCreateEmployee).toHaveBeenCalledWith({
         full_name: "Priya Rao",
         email: "priya.rao@acme.test",
+        gender: "Female",
         title: "Software Engineer",
         department: "Engineering",
         level: "L2",

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS employees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
+  gender TEXT NOT NULL CHECK (gender IN ('Male', 'Female', 'Non-binary', 'Prefer not to say')),
   department TEXT NOT NULL CHECK (department IN ('Engineering', 'Sales', 'Marketing', 'HR', 'Finance', 'Operations')),
   title TEXT NOT NULL,
   level TEXT NOT NULL CHECK (level IN ('L1', 'L2', 'L3', 'L4', 'L5')),

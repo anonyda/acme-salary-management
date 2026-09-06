@@ -22,19 +22,19 @@ import {
 //   6. Frank Ocean    | Marketing   | IN | L1
 //   7. Grace Hopper   | Engineering | US | L3
 const FIXTURE_EMPLOYEES = [
-  { fullName: "Alice Johnson", email: "alice.johnson@acme.test", department: "Engineering", country: "US", level: "L2", amount: 90000, currency: "USD" },
-  { fullName: "Alicia Keys", email: "alicia.keys@acme.test", department: "Sales", country: "US", level: "L2", amount: 85000, currency: "USD" },
-  { fullName: "Bob Smith", email: "bob.smith@acme.test", department: "Sales", country: "UK", level: "L1", amount: 40000, currency: "GBP" },
-  { fullName: "Carol Diaz", email: "carol.diaz@acme.test", department: "Marketing", country: "IN", level: "L3", amount: 1_800_000, currency: "INR" },
-  { fullName: "David Lee", email: "david.lee@acme.test", department: "Engineering", country: "UK", level: "L1", amount: 35000, currency: "GBP" },
-  { fullName: "Frank Ocean", email: "frank.ocean@acme.test", department: "Marketing", country: "IN", level: "L1", amount: 700000, currency: "INR" },
-  { fullName: "Grace Hopper", email: "grace.hopper@acme.test", department: "Engineering", country: "US", level: "L3", amount: 120000, currency: "USD" },
+  { fullName: "Alice Johnson", email: "alice.johnson@acme.test", gender: "Female", department: "Engineering", country: "US", level: "L2", amount: 90000, currency: "USD" },
+  { fullName: "Alicia Keys", email: "alicia.keys@acme.test", gender: "Female", department: "Sales", country: "US", level: "L2", amount: 85000, currency: "USD" },
+  { fullName: "Bob Smith", email: "bob.smith@acme.test", gender: "Male", department: "Sales", country: "UK", level: "L1", amount: 40000, currency: "GBP" },
+  { fullName: "Carol Diaz", email: "carol.diaz@acme.test", gender: "Female", department: "Marketing", country: "IN", level: "L3", amount: 1_800_000, currency: "INR" },
+  { fullName: "David Lee", email: "david.lee@acme.test", gender: "Male", department: "Engineering", country: "UK", level: "L1", amount: 35000, currency: "GBP" },
+  { fullName: "Frank Ocean", email: "frank.ocean@acme.test", gender: "Male", department: "Marketing", country: "IN", level: "L1", amount: 700000, currency: "INR" },
+  { fullName: "Grace Hopper", email: "grace.hopper@acme.test", gender: "Female", department: "Engineering", country: "US", level: "L3", amount: 120000, currency: "USD" },
 ];
 
 function seedFixture(db: Database.Database): void {
   const insertEmployee = db.prepare(`
-    INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-    VALUES (@fullName, @email, @department, 'Employee', @level, @country, '2022-01-01')
+    INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+    VALUES (@fullName, @email, @gender, @department, 'Employee', @level, @country, '2022-01-01')
   `);
   const insertSalary = db.prepare(`
     INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -153,8 +153,8 @@ describe("getEmployeeById", () => {
   beforeEach(() => {
     db = createConnection(":memory:");
     db.prepare(`
-      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+      INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Female', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
     `).run();
     db.prepare(`
       INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -194,6 +194,7 @@ describe("createEmployee", () => {
   const validInput = {
     full_name: "Priya Rao",
     email: "priya.rao@acme.test",
+    gender: "Female",
     department: "Engineering",
     title: "Software Engineer",
     level: "L2",
@@ -216,6 +217,7 @@ describe("createEmployee", () => {
     expect(employee).toMatchObject({
       full_name: "Priya Rao",
       email: "priya.rao@acme.test",
+      gender: "Female",
       department: "Engineering",
       salary: { amount: 95000, currency: "USD", effective_date: "2023-09-01" },
     });
@@ -248,8 +250,8 @@ describe("updateSalary", () => {
   beforeEach(() => {
     db = createConnection(":memory:");
     db.prepare(`
-      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+      INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Female', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
     `).run();
     db.prepare(`
       INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -296,8 +298,8 @@ describe("deactivateEmployee", () => {
   beforeEach(() => {
     db = createConnection(":memory:");
     db.prepare(`
-      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+      INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Female', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
     `).run();
     db.prepare(`
       INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -329,8 +331,8 @@ describe("updateEmployee", () => {
   beforeEach(() => {
     db = createConnection(":memory:");
     db.prepare(`
-      INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+      INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+      VALUES ('Nina Patel', 'nina.patel@acme.test', 'Female', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
     `).run();
     db.prepare(`
       INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)

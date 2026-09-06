@@ -6,8 +6,10 @@ import {
   type Currency,
   type Department,
   type Employee,
+  type Gender,
   type Level,
   SUPPORTED_CURRENCIES,
+  SUPPORTED_GENDERS,
 } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -117,6 +119,7 @@ export function AddEmployeeDialog({ onCreated }: AddEmployeeDialogProps) {
       const created = await createEmployee({
         full_name: values.fullName.trim(),
         email: values.email.trim(),
+        gender: values.gender as Gender,
         title: values.title.trim(),
         department: values.department as Department,
         level: values.level as Level,
@@ -161,6 +164,16 @@ export function AddEmployeeDialog({ onCreated }: AddEmployeeDialogProps) {
               value={values.email}
               onChange={(e) => updateField("email", e.target.value)}
               aria-invalid={!!errors.email}
+            />
+          </Field>
+
+          <Field id="employee-gender" label="Gender" error={errors.gender}>
+            <EnumSelect
+              id="employee-gender"
+              value={values.gender}
+              options={SUPPORTED_GENDERS}
+              onChange={(v) => updateField("gender", v)}
+              invalid={!!errors.gender}
             />
           </Field>
 

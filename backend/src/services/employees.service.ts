@@ -87,6 +87,7 @@ export interface EmployeeWithSalary {
   id: number;
   full_name: string;
   email: string;
+  gender: string;
   department: string;
   title: string;
   level: string;
@@ -135,6 +136,7 @@ const SUPPORTED_CURRENCIES = ["USD", "GBP", "INR", "EUR"];
 export interface CreateEmployeeInput {
   full_name: string;
   email: string;
+  gender: string;
   department: string;
   title: string;
   level: string;
@@ -154,12 +156,13 @@ export function createEmployee(db: Database.Database, input: CreateEmployeeInput
 
   const { lastInsertRowid } = db
     .prepare(
-      `INSERT INTO employees (full_name, email, department, title, level, country, manager_id, hire_date)
-       VALUES (@full_name, @email, @department, @title, @level, @country, @manager_id, @hire_date)`,
+      `INSERT INTO employees (full_name, email, gender, department, title, level, country, manager_id, hire_date)
+       VALUES (@full_name, @email, @gender, @department, @title, @level, @country, @manager_id, @hire_date)`,
     )
     .run({
       full_name: input.full_name,
       email: input.email,
+      gender: input.gender,
       department: input.department,
       title: input.title,
       level: input.level,
@@ -234,6 +237,7 @@ export function deactivateEmployee(db: Database.Database, id: number): EmployeeW
 const UPDATABLE_PROFILE_FIELDS = [
   "full_name",
   "email",
+  "gender",
   "department",
   "title",
   "level",

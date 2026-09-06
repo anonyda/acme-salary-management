@@ -19,8 +19,8 @@ function insertEmployee(
   const email = `${opts.fullName.toLowerCase().replace(/\s+/g, ".")}@acme.test`;
   const { lastInsertRowid: id } = db
     .prepare(
-      `INSERT INTO employees (full_name, email, department, title, level, country, hire_date, status)
-       VALUES (@fullName, @email, @department, 'Employee', @level, @country, '2022-01-01', @status)`,
+      `INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date, status)
+       VALUES (@fullName, @email, 'Prefer not to say', @department, 'Employee', @level, @country, '2022-01-01', @status)`,
     )
     .run({
       fullName: opts.fullName,

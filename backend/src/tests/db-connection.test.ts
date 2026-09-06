@@ -21,8 +21,8 @@ describe("createConnection", () => {
     const db = createConnection(":memory:");
 
     db.prepare(
-      "INSERT INTO employees (full_name, email, department, title, level, country, hire_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    ).run("Jane Doe", "jane@example.com", "Engineering", "Engineer", "L2", "US", "2024-01-01");
+      "INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run("Jane Doe", "jane@example.com", "Female", "Engineering", "Engineer", "L2", "US", "2024-01-01");
 
     const insertSalary = db.prepare(
       "INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current) VALUES (1, ?, 'USD', '2024-01-01', 1)",
@@ -53,9 +53,9 @@ describe("createConnection", () => {
       const db1 = createConnection(dbPath);
       db1
         .prepare(
-          "INSERT INTO employees (full_name, email, department, title, level, country, hire_date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
-        .run("Nina Patel", "nina.patel@acme.test", "Finance", "Financial Analyst", "L3", "IN", "2021-06-15");
+        .run("Nina Patel", "nina.patel@acme.test", "Female", "Finance", "Financial Analyst", "L3", "IN", "2021-06-15");
       db1.close();
 
       // Simulate a server restart: re-applying schema.sql against an

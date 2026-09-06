@@ -6,6 +6,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export interface CreateEmployeeFormValues {
   fullName: string;
   email: string;
+  gender: string;
   title: string;
   department: string;
   country: string;
@@ -20,6 +21,7 @@ export type CreateEmployeeFormErrors = Partial<Record<keyof CreateEmployeeFormVa
 export const emptyCreateEmployeeForm: CreateEmployeeFormValues = {
   fullName: "",
   email: "",
+  gender: "",
   title: "",
   department: "",
   country: "",
@@ -40,6 +42,8 @@ export function validateCreateEmployeeForm(values: CreateEmployeeFormValues): Cr
 
   if (!values.email.trim()) errors.email = "Email is required.";
   else if (!EMAIL_PATTERN.test(values.email)) errors.email = "Enter a valid email address.";
+
+  if (!values.gender) errors.gender = "Select a gender.";
 
   if (!values.title.trim()) errors.title = "Title is required.";
   if (!values.department) errors.department = "Select a department.";

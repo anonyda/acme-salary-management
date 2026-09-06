@@ -10,10 +10,12 @@ faker.seed(42);
 const DEPARTMENTS = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"] as const;
 const LEVELS = ["L1", "L2", "L3", "L4", "L5"] as const;
 const COUNTRIES = ["US", "UK", "IN", "DE"] as const;
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"] as const;
 
 type Department = (typeof DEPARTMENTS)[number];
 type Level = (typeof LEVELS)[number];
 type Country = (typeof COUNTRIES)[number];
+type Gender = (typeof GENDERS)[number];
 
 const CURRENCY_BY_COUNTRY: Record<Country, string> = {
   US: "USD",
@@ -109,6 +111,13 @@ const STATUS_WEIGHTS: { weight: number; value: "active" | "inactive" }[] = [
   { weight: 4, value: "inactive" },
 ];
 
+const GENDER_WEIGHTS: { weight: number; value: Gender }[] = [
+  { weight: 48, value: "Male" },
+  { weight: 48, value: "Female" },
+  { weight: 2, value: "Non-binary" },
+  { weight: 2, value: "Prefer not to say" },
+];
+
 function buildTitle(department: Department, level: Level): string {
   const prefix = TITLE_PREFIX_BY_LEVEL[level];
   const roleNoun = ROLE_NOUN_BY_DEPARTMENT[department];
@@ -152,8 +161,8 @@ function seedEmployeesAndSalaries(db: Database.Database, count: number): void {
   db.exec("DELETE FROM salaries; DELETE FROM employees; DELETE FROM sqlite_sequence WHERE name IN ('employees', 'salaries');");
 
   const insertEmployee = db.prepare(`
-    INSERT INTO employees (full_name, email, department, title, level, country, manager_id, hire_date, status)
-    VALUES (@fullName, @email, @department, @title, @level, @country, @managerId, @hireDate, @status)
+    INSERT INTO employees (full_name, email, gender, department, title, level, country, manager_id, hire_date, status)
+    VALUES (@fullName, @email, @gender, @department, @title, @level, @country, @managerId, @hireDate, @status)
   `);
   const insertSalary = db.prepare(`
     INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -164,7 +173,13 @@ function seedEmployeesAndSalaries(db: Database.Database, count: number): void {
     const managerPools = createEmptyManagerPools();
 
     for (let i = 0; i < rowCount; i++) {
-      const fullName = faker.person.fullName();
+      const gender = faker.helpers.weightedArrayElement(GENDER_WEIGHTS);
+      // Male/Female get a name matching their gender; the other two options
+      // (no single "matching" name pool) get an unweighted random name.
+      const fullName =
+        gender === "Male" || gender === "Female"
+          ? faker.person.fullName({ sex: gender === "Male" ? "male" : "female" })
+          : faker.person.fullName();
       const department = faker.helpers.arrayElement(DEPARTMENTS);
       const level = faker.helpers.weightedArrayElement(LEVEL_WEIGHTS);
       const country = faker.helpers.weightedArrayElement(COUNTRY_WEIGHTS);
@@ -175,6 +190,7 @@ function seedEmployeesAndSalaries(db: Database.Database, count: number): void {
       const { lastInsertRowid: employeeId } = insertEmployee.run({
         fullName,
         email: buildEmail(fullName, i),
+        gender,
         department,
         title: buildTitle(department, level),
         level,

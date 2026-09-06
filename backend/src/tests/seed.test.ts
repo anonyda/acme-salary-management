@@ -5,6 +5,7 @@ import { seedDatabase } from "../db/seed.js";
 const DEPARTMENTS = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
 const LEVELS = ["L1", "L2", "L3", "L4", "L5"];
 const COUNTRIES = ["US", "UK", "IN", "DE"];
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
 const CURRENCY_BY_COUNTRY: Record<string, string> = { US: "USD", UK: "GBP", IN: "INR", DE: "EUR" };
 
 describe("seedDatabase", () => {
@@ -28,16 +29,17 @@ describe("seedDatabase", () => {
 
     const rows = db
       .prepare(
-        `SELECT e.department, e.level, e.country, e.status, s.currency
+        `SELECT e.department, e.level, e.country, e.status, e.gender, s.currency
          FROM employees e JOIN salaries s ON s.employee_id = e.id`,
       )
-      .all() as { department: string; level: string; country: string; status: string; currency: string }[];
+      .all() as { department: string; level: string; country: string; status: string; gender: string; currency: string }[];
 
     for (const row of rows) {
       expect(DEPARTMENTS).toContain(row.department);
       expect(LEVELS).toContain(row.level);
       expect(COUNTRIES).toContain(row.country);
       expect(["active", "inactive"]).toContain(row.status);
+      expect(GENDERS).toContain(row.gender);
       expect(row.currency).toBe(CURRENCY_BY_COUNTRY[row.country]);
     }
     db.close();

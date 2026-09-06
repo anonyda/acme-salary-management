@@ -6,6 +6,7 @@ export type Department = "Engineering" | "Sales" | "Marketing" | "HR" | "Finance
 export type Level = "L1" | "L2" | "L3" | "L4" | "L5";
 export type Country = "US" | "UK" | "IN" | "DE";
 export type Currency = "USD" | "GBP" | "INR" | "EUR";
+export type Gender = "Male" | "Female" | "Non-binary" | "Prefer not to say";
 export type EmployeeStatus = "active" | "inactive";
 
 export interface CurrentSalary {
@@ -18,6 +19,7 @@ export interface Employee {
   id: number;
   full_name: string;
   email: string;
+  gender: Gender;
   department: Department;
   title: string;
   level: Level;
@@ -33,6 +35,7 @@ export interface Employee {
 export type EmployeeWithSalary = Employee;
 
 export const SUPPORTED_CURRENCIES: Currency[] = ["USD", "GBP", "INR", "EUR"];
+export const SUPPORTED_GENDERS: Gender[] = ["Male", "Female", "Non-binary", "Prefer not to say"];
 
 export interface ListEmployeesParams {
   page?: number;
@@ -53,6 +56,7 @@ export interface ListEmployeesResponse {
 export interface CreateEmployeeInput {
   full_name: string;
   email: string;
+  gender: Gender;
   department: Department;
   title: string;
   level: Level;
@@ -68,6 +72,7 @@ export interface CreateEmployeeInput {
 export interface UpdateEmployeeInput {
   full_name?: string;
   email?: string;
+  gender?: Gender;
   department?: Department;
   title?: string;
   level?: Level;

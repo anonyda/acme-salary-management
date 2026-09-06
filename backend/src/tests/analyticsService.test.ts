@@ -36,6 +36,7 @@ function seedFixture(db: Database.Database): void {
 
   const employees: {
     fullName: string;
+    gender: string;
     department: string;
     country: string;
     level: string;
@@ -43,20 +44,20 @@ function seedFixture(db: Database.Database): void {
     amount: number;
     currency: string;
   }[] = [
-    { fullName: "Alice Johnson", department: "Engineering", country: "US", level: "L2", status: "active", amount: 90000, currency: "USD" },
-    { fullName: "Bob Smith", department: "Engineering", country: "UK", level: "L2", status: "active", amount: 45000, currency: "GBP" },
-    { fullName: "Eve Ocean", department: "Engineering", country: "US", level: "L3", status: "active", amount: 120000, currency: "USD" },
-    { fullName: "Carol Diaz", department: "Sales", country: "DE", level: "L2", status: "active", amount: 60000, currency: "EUR" },
-    { fullName: "Dave Lee", department: "Sales", country: "IN", level: "L2", status: "active", amount: 9_000_000, currency: "INR" },
-    { fullName: "Frank Ocean", department: "Sales", country: "UK", level: "L1", status: "inactive", amount: 40000, currency: "GBP" },
+    { fullName: "Alice Johnson", gender: "Female", department: "Engineering", country: "US", level: "L2", status: "active", amount: 90000, currency: "USD" },
+    { fullName: "Bob Smith", gender: "Male", department: "Engineering", country: "UK", level: "L2", status: "active", amount: 45000, currency: "GBP" },
+    { fullName: "Eve Ocean", gender: "Female", department: "Engineering", country: "US", level: "L3", status: "active", amount: 120000, currency: "USD" },
+    { fullName: "Carol Diaz", gender: "Female", department: "Sales", country: "DE", level: "L2", status: "active", amount: 60000, currency: "EUR" },
+    { fullName: "Dave Lee", gender: "Male", department: "Sales", country: "IN", level: "L2", status: "active", amount: 9_000_000, currency: "INR" },
+    { fullName: "Frank Ocean", gender: "Male", department: "Sales", country: "UK", level: "L1", status: "inactive", amount: 40000, currency: "GBP" },
   ];
 
   for (const emp of employees) {
     const email = `${emp.fullName.toLowerCase().replace(/\s+/g, ".")}@acme.test`;
     const { lastInsertRowid: id } = db
       .prepare(
-        `INSERT INTO employees (full_name, email, department, title, level, country, hire_date, status)
-         VALUES (@fullName, @email, @department, 'Employee', @level, @country, '2022-01-01', @status)`,
+        `INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date, status)
+         VALUES (@fullName, @email, @gender, @department, 'Employee', @level, @country, '2022-01-01', @status)`,
       )
       .run({ ...emp, email });
 

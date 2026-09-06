@@ -6,8 +6,8 @@ import { createConnection } from "../db/connection.js";
 
 function seedFixture(db: Database.Database): void {
   db.prepare(`
-    INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-    VALUES ('Nina Patel', 'nina.patel@acme.test', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
+    INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+    VALUES ('Nina Patel', 'nina.patel@acme.test', 'Female', 'Finance', 'Financial Analyst', 'L3', 'IN', '2021-06-15')
   `).run();
   db.prepare(`
     INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -15,8 +15,8 @@ function seedFixture(db: Database.Database): void {
   `).run();
 
   db.prepare(`
-    INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
-    VALUES ('Owen Reyes', 'owen.reyes@acme.test', 'Engineering', 'Software Engineer', 'L2', 'US', '2022-03-01')
+    INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+    VALUES ('Owen Reyes', 'owen.reyes@acme.test', 'Male', 'Engineering', 'Software Engineer', 'L2', 'US', '2022-03-01')
   `).run();
   db.prepare(`
     INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
@@ -82,6 +82,7 @@ describe("employees routes", () => {
     const validBody = {
       full_name: "Priya Rao",
       email: "priya.rao@acme.test",
+      gender: "Female",
       department: "Engineering",
       title: "Software Engineer",
       level: "L2",

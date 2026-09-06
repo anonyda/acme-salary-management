@@ -143,6 +143,7 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
 
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <DetailField label="Email" value={employee.email} />
+              <DetailField label="Gender" value={employee.gender} />
               <DetailField label="Level" value={employee.level} />
               <DetailField label="Country" value={employee.country} />
               <DetailField label="Hire date" value={employee.hire_date} />

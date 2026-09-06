@@ -15,6 +15,7 @@ const sampleEmployee: Employee = {
   id: 1,
   full_name: "Alice Johnson",
   email: "alice.johnson@acme.test",
+  gender: "Female",
   department: "Engineering",
   title: "Software Engineer",
   level: "L2",
