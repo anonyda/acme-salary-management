@@ -28,8 +28,10 @@ describe("GET /api/analytics/summary", () => {
 
   beforeEach(() => {
     db = createConnection(":memory:");
+    db.prepare("INSERT INTO exchange_rates (currency, rate_to_usd, as_of_date) VALUES ('GBP', 2, '2026-01-01')").run();
     insertEmployee(db, { fullName: "Alice Johnson", department: "Engineering", country: "US", status: "active", amount: 100000, currency: "USD" });
     insertEmployee(db, { fullName: "Carol Diaz", department: "Sales", country: "US", status: "active", amount: 80000, currency: "USD" });
+    insertEmployee(db, { fullName: "Bob Smith", department: "Engineering", country: "UK", status: "active", amount: 40000, currency: "GBP" });
     insertEmployee(db, { fullName: "Eve Ocean", department: "Engineering", country: "US", status: "inactive", amount: 60000, currency: "USD" });
     app = createApp(db);
   });
@@ -38,14 +40,33 @@ describe("GET /api/analytics/summary", () => {
     db.close();
   });
 
-  it("returns headcount/average by department and average/total by country, active employees only", async () => {
+  it("returns USD-normalized KPIs and department/country breakdowns, active employees only", async () => {
     const res = await request(app).get("/api/analytics/summary");
 
     expect(res.status).toBe(200);
-    expect(res.body.by_department).toEqual([
-      { department: "Engineering", headcount: 1, average_salary: 100000 },
-      { department: "Sales", headcount: 1, average_salary: 80000 },
+    expect(res.body.kpis).toEqual({
+      totalPayrollUSD: 260000,
+      activeHeadcount: 3,
+      avgSalaryUSD: 86666.67,
+      medianSalaryUSD: 80000,
+    });
+    expect(res.body.byDepartment).toEqual([
+      { department: "Engineering", headcount: 2, avgSalaryUSD: 90000, medianSalaryUSD: 90000 },
+      { department: "Sales", headcount: 1, avgSalaryUSD: 80000, medianSalaryUSD: 80000 },
     ]);
-    expect(res.body.by_country).toEqual([{ country: "US", average_salary: 90000, total_payroll: 180000 }]);
+    expect(res.body.byCountry).toEqual([
+      { country: "UK", avgSalaryUSD: 80000, medianSalaryUSD: 80000, totalPayrollUSD: 80000 },
+      { country: "US", avgSalaryUSD: 90000, medianSalaryUSD: 90000, totalPayrollUSD: 180000 },
+    ]);
+  });
+
+  it("scopes the summary to a department filter", async () => {
+    const res = await request(app).get("/api/analytics/summary").query({ department: "Engineering" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.kpis.activeHeadcount).toBe(2);
+    expect(res.body.byDepartment).toEqual([
+      { department: "Engineering", headcount: 2, avgSalaryUSD: 90000, medianSalaryUSD: 90000 },
+    ]);
   });
 });

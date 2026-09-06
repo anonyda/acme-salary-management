@@ -1,53 +1,184 @@
 import type Database from "better-sqlite3";
 
-export interface DepartmentSummary {
-  department: string;
-  headcount: number;
-  average_salary: number;
+export interface AnalyticsFilters {
+  department?: string;
+  country?: string;
+  level?: string;
 }
 
-export interface CountrySummary {
+export interface Kpis {
+  totalPayrollUSD: number;
+  activeHeadcount: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+}
+
+export interface DepartmentBreakdown {
+  department: string;
+  headcount: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+}
+
+export interface CountryBreakdown {
   country: string;
-  average_salary: number;
-  total_payroll: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+  totalPayrollUSD: number;
+}
+
+export interface DistributionBucket {
+  label: string;
+  count: number;
+}
+
+export interface CountryDistribution {
+  country: string;
+  buckets: DistributionBucket[];
 }
 
 export interface AnalyticsSummary {
-  by_department: DepartmentSummary[];
-  by_country: CountrySummary[];
+  kpis: Kpis;
+  byDepartment: DepartmentBreakdown[];
+  byCountry: CountryBreakdown[];
+  distributionByCountry: CountryDistribution[];
 }
 
-// Both aggregates cover active employees only (soft-deleted employees are
-// excluded, since they no longer reflect current payroll cost).
-export function getAnalyticsSummary(db: Database.Database): AnalyticsSummary {
-  // Department averages mix native currencies across countries (e.g. USD
-  // and GBP within Engineering) — no conversion/normalization is done,
-  // per docs/TRD.md section 4.2, a documented scope cut, not an oversight.
-  const by_department = db
+// Fixed bands so every country's distribution chart uses the same x-axis,
+// per docs/TRD.md section 8.1. Upper bound is exclusive (e.g. exactly
+// 120000 falls in "$120k–160k", not "$80k–120k").
+const DISTRIBUTION_BANDS: { label: string; min: number; max: number }[] = [
+  { label: "$0–40k", min: 0, max: 40_000 },
+  { label: "$40k–80k", min: 40_000, max: 80_000 },
+  { label: "$80k–120k", min: 80_000, max: 120_000 },
+  { label: "$120k–160k", min: 120_000, max: 160_000 },
+  { label: "$160k–200k", min: 160_000, max: 200_000 },
+  { label: "$200k+", min: 200_000, max: Infinity },
+];
+
+interface EmployeeSalaryRow {
+  department: string;
+  country: string;
+  amount: number;
+  currency: string;
+}
+
+// SQLite has no median aggregate — computed here from sorted, USD-converted
+// values, per docs/TRD.md section 8.1. Callers must pass values pre-sorted.
+export function calculateMedian(sortedValues: number[]): number {
+  if (sortedValues.length === 0) return 0;
+
+  const mid = Math.floor(sortedValues.length / 2);
+  if (sortedValues.length % 2 === 0) {
+    return (sortedValues[mid - 1] + sortedValues[mid]) / 2;
+  }
+  return sortedValues[mid];
+}
+
+function roundCurrency(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+function bucketFor(amountUSD: number): string {
+  const band = DISTRIBUTION_BANDS.find((b) => amountUSD >= b.min && amountUSD < b.max);
+  // Every real amount is non-negative and the last band has no upper bound,
+  // so a match always exists.
+  return band!.label;
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+// KPIs, breakdowns, and distributions are all derived from the same
+// filtered, active-only, USD-normalized set of current salaries, so every
+// figure in the response is consistent with every other.
+export function getSummary(db: Database.Database, filters: AnalyticsFilters = {}): AnalyticsSummary {
+  const rows = db
     .prepare(
-      `SELECT e.department AS department,
-              COUNT(*) AS headcount,
-              ROUND(AVG(s.amount), 2) AS average_salary
+      `SELECT e.department AS department, e.country AS country, s.amount AS amount, s.currency AS currency
        FROM employees e
        JOIN salaries s ON s.employee_id = e.id AND s.is_current = 1
        WHERE e.status = 'active'
-       GROUP BY e.department
-       ORDER BY e.department`,
+         AND (@department IS NULL OR e.department = @department)
+         AND (@country IS NULL OR e.country = @country)
+         AND (@level IS NULL OR e.level = @level)`,
     )
-    .all() as DepartmentSummary[];
+    .all({
+      department: filters.department ?? null,
+      country: filters.country ?? null,
+      level: filters.level ?? null,
+    }) as EmployeeSalaryRow[];
 
-  const by_country = db
-    .prepare(
-      `SELECT e.country AS country,
-              ROUND(AVG(s.amount), 2) AS average_salary,
-              ROUND(SUM(s.amount), 2) AS total_payroll
-       FROM employees e
-       JOIN salaries s ON s.employee_id = e.id AND s.is_current = 1
-       WHERE e.status = 'active'
-       GROUP BY e.country
-       ORDER BY e.country`,
-    )
-    .all() as CountrySummary[];
+  const rateRows = db.prepare("SELECT currency, rate_to_usd AS rateToUsd FROM exchange_rates").all() as {
+    currency: string;
+    rateToUsd: number;
+  }[];
+  const rateByCurrency = new Map<string, number>(rateRows.map((r) => [r.currency, r.rateToUsd]));
+  const toUSD = (amount: number, currency: string): number =>
+    currency === "USD" ? amount : amount * (rateByCurrency.get(currency) ?? 1);
 
-  return { by_department, by_country };
+  const usdAmounts: number[] = [];
+  const byDepartmentAmounts = new Map<string, number[]>();
+  const byCountryAmounts = new Map<string, number[]>();
+
+  for (const row of rows) {
+    const usd = toUSD(row.amount, row.currency);
+    usdAmounts.push(usd);
+
+    if (!byDepartmentAmounts.has(row.department)) byDepartmentAmounts.set(row.department, []);
+    byDepartmentAmounts.get(row.department)!.push(usd);
+
+    if (!byCountryAmounts.has(row.country)) byCountryAmounts.set(row.country, []);
+    byCountryAmounts.get(row.country)!.push(usd);
+  }
+
+  const sortedAll = [...usdAmounts].sort((a, b) => a - b);
+  const kpis: Kpis = {
+    totalPayrollUSD: roundCurrency(usdAmounts.reduce((sum, v) => sum + v, 0)),
+    activeHeadcount: usdAmounts.length,
+    avgSalaryUSD: roundCurrency(average(usdAmounts)),
+    medianSalaryUSD: roundCurrency(calculateMedian(sortedAll)),
+  };
+
+  const byDepartment: DepartmentBreakdown[] = [...byDepartmentAmounts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([department, amounts]) => {
+      const sorted = [...amounts].sort((a, b) => a - b);
+      return {
+        department,
+        headcount: amounts.length,
+        avgSalaryUSD: roundCurrency(average(amounts)),
+        medianSalaryUSD: roundCurrency(calculateMedian(sorted)),
+      };
+    });
+
+  const byCountry: CountryBreakdown[] = [...byCountryAmounts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([country, amounts]) => {
+      const sorted = [...amounts].sort((a, b) => a - b);
+      return {
+        country,
+        avgSalaryUSD: roundCurrency(average(amounts)),
+        medianSalaryUSD: roundCurrency(calculateMedian(sorted)),
+        totalPayrollUSD: roundCurrency(amounts.reduce((sum, v) => sum + v, 0)),
+      };
+    });
+
+  const distributionByCountry: CountryDistribution[] = [...byCountryAmounts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([country, amounts]) => {
+      const counts = new Map<string, number>(DISTRIBUTION_BANDS.map((b) => [b.label, 0]));
+      for (const usd of amounts) {
+        const label = bucketFor(usd);
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      }
+      return {
+        country,
+        buckets: DISTRIBUTION_BANDS.map((b) => ({ label: b.label, count: counts.get(b.label) ?? 0 })),
+      };
+    });
+
+  return { kpis, byDepartment, byCountry, distributionByCountry };
 }
