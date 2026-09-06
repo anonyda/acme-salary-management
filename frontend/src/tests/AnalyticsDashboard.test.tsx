@@ -126,4 +126,37 @@ describe("AnalyticsDashboard", () => {
       }),
     );
   });
+
+  it("clears active filters and re-fetches with everything undefined", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeDisabled();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(await screen.findByRole("option", { name: "Engineering" }));
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: "Engineering",
+        country: undefined,
+        level: undefined,
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Clear filters" })).not.toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    expect(screen.getByRole("combobox", { name: "Department" })).toHaveTextContent(/all department/i);
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeDisabled();
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: undefined,
+        country: undefined,
+        level: undefined,
+      }),
+    );
+  });
 });

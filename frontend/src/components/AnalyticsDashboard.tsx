@@ -11,6 +11,7 @@ import {
   getAnalyticsSummary,
   type Level,
 } from "@/api/client";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCompactUSD, formatUSD } from "@/lib/currency";
@@ -198,6 +199,13 @@ export function AnalyticsDashboard() {
     setStatus("loading");
   }
 
+  const hasActiveFilters = filters.department !== ALL || filters.country !== ALL || filters.level !== ALL;
+
+  function clearFilters() {
+    setFilters(initialFilters);
+    setStatus("loading");
+  }
+
   // First load only — once we have a summary to show, a filter-triggered
   // refetch keeps that render (dimmed) instead of wiping the dashboard,
   // so charts never flash blank or jump layout while reloading.
@@ -232,6 +240,9 @@ export function AnalyticsDashboard() {
           options={LEVELS}
           onChange={(value) => updateFilter("level", value)}
         />
+        <Button variant="ghost" size="sm" onClick={clearFilters} disabled={!hasActiveFilters}>
+          Clear filters
+        </Button>
       </div>
 
       {status === "error" && <p className="text-sm text-destructive">{errorMessage}</p>}
