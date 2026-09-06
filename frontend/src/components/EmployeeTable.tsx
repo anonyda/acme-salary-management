@@ -2,10 +2,13 @@ import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   ApiError,
+  COUNTRIES,
   type Country,
+  DEPARTMENTS,
   type Department,
   type Employee,
   type EmployeeWithSalary,
+  LEVELS,
   type Level,
   listEmployees,
 } from "@/api/client";
@@ -18,10 +21,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { formatCurrency } from "@/lib/currency";
-
-const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
-const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
-const LEVELS: Level[] = ["L1", "L2", "L3", "L4", "L5"];
 
 // Sentinel for "no filter" — Radix Select doesn't allow an empty-string item value.
 const ALL = "all";

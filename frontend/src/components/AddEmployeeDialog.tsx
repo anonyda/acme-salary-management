@@ -1,12 +1,15 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import {
   ApiError,
+  COUNTRIES,
   type Country,
   createEmployee,
   type Currency,
+  DEPARTMENTS,
   type Department,
   type Employee,
   type Gender,
+  LEVELS,
   type Level,
   SUPPORTED_CURRENCIES,
   SUPPORTED_GENDERS,
@@ -29,10 +32,6 @@ import {
   emptyCreateEmployeeForm,
   validateCreateEmployeeForm,
 } from "@/lib/createEmployeeValidation";
-
-const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
-const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
-const LEVELS = ["L1", "L2", "L3", "L4", "L5"] as const;
 
 interface FieldProps {
   id: string;

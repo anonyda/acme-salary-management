@@ -36,6 +36,9 @@ export type EmployeeWithSalary = Employee;
 
 export const SUPPORTED_CURRENCIES: Currency[] = ["USD", "GBP", "INR", "EUR"];
 export const SUPPORTED_GENDERS: Gender[] = ["Male", "Female", "Non-binary", "Prefer not to say"];
+export const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
+export const LEVELS: Level[] = ["L1", "L2", "L3", "L4", "L5"];
+export const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
 
 export interface ListEmployeesParams {
   page?: number;
