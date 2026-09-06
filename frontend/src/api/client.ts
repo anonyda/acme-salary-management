@@ -81,21 +81,48 @@ export interface UpdateSalaryInput {
   currency: Currency;
 }
 
-export interface DepartmentSummary {
-  department: Department;
-  headcount: number;
-  average_salary: number;
+export interface AnalyticsFilters {
+  department?: Department;
+  country?: Country;
+  level?: Level;
 }
 
-export interface CountrySummary {
+export interface AnalyticsKpis {
+  totalPayrollUSD: number;
+  activeHeadcount: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+}
+
+export interface DepartmentBreakdown {
+  department: Department;
+  headcount: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+}
+
+export interface CountryBreakdown {
   country: Country;
-  average_salary: number;
-  total_payroll: number;
+  avgSalaryUSD: number;
+  medianSalaryUSD: number;
+  totalPayrollUSD: number;
+}
+
+export interface DistributionBucket {
+  label: string;
+  count: number;
+}
+
+export interface CountryDistribution {
+  country: Country;
+  buckets: DistributionBucket[];
 }
 
 export interface AnalyticsSummary {
-  by_department: DepartmentSummary[];
-  by_country: CountrySummary[];
+  kpis: AnalyticsKpis;
+  byDepartment: DepartmentBreakdown[];
+  byCountry: CountryBreakdown[];
+  distributionByCountry: CountryDistribution[];
 }
 
 export interface HealthStatus {
@@ -173,6 +200,6 @@ export function deactivateEmployee(id: number): Promise<EmployeeWithSalary> {
   return request<EmployeeWithSalary>(`/api/employees/${id}`, { method: "DELETE" });
 }
 
-export function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-  return request<AnalyticsSummary>("/api/analytics/summary");
+export function getAnalyticsSummary(params: AnalyticsFilters = {}): Promise<AnalyticsSummary> {
+  return request<AnalyticsSummary>(`/api/analytics/summary${toQueryString(params)}`);
 }

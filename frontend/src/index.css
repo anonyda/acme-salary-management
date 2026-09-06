@@ -85,7 +85,11 @@
   --input: oklch(0.9 0.012 65);
   --ring: oklch(0.32 0.09 250);
 
-  --chart-1: oklch(0.32 0.09 250);
+  /* Chart categorical slots (average vs. median series) — re-stepped from
+     the base --primary navy so it clears the OKLCH lightness/chroma bands
+     data-viz identity colors need; --chart-2 (forest green) already did.
+     Validated CVD-safe as a pair (light + dark) via validate_palette.js. */
+  --chart-1: oklch(0.5 0.14 250);
   --chart-2: oklch(0.5 0.1 155);
   --chart-3: oklch(0.68 0.13 85);
   --chart-4: oklch(0.5 0.12 320);
@@ -130,7 +134,7 @@
   --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.68 0.12 250);
 
-  --chart-1: oklch(0.68 0.12 250);
+  --chart-1: oklch(0.62 0.14 250);
   --chart-2: oklch(0.62 0.11 155);
   --chart-3: oklch(0.75 0.12 85);
   --chart-4: oklch(0.62 0.13 320);
