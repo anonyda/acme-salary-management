@@ -9,6 +9,7 @@ import {
   type Level,
   listEmployees,
 } from "@/api/client";
+import { AddEmployeeDialog } from "@/components/AddEmployeeDialog";
 import { EmployeeDetailModal, type EmployeeDetailMode } from "@/components/EmployeeDetailModal";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -79,6 +80,7 @@ export function EmployeeTable() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [detailMode, setDetailMode] = useState<EmployeeDetailMode>("view");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   function openDetail(employeeId: number, mode: EmployeeDetailMode) {
     setSelectedEmployeeId(employeeId);
@@ -124,7 +126,7 @@ export function EmployeeTable() {
     return () => {
       cancelled = true;
     };
-  }, [query]);
+  }, [query, refreshKey]);
 
   function updateFilter(key: "department" | "country" | "level", value: string) {
     setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));
@@ -148,6 +150,10 @@ export function EmployeeTable() {
 
   function handleSalaryUpdated(updated: EmployeeWithSalary) {
     setEmployees((prev) => prev.map((e) => (e.id === updated.id ? { ...e, salary: updated.salary } : e)));
+  }
+
+  function handleEmployeeCreated() {
+    setRefreshKey((key) => key + 1);
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -185,6 +191,9 @@ export function EmployeeTable() {
         <Button variant="ghost" size="sm" onClick={clearFilters} disabled={!hasActiveFilters}>
           Clear filters
         </Button>
+        <div className="ml-auto">
+          <AddEmployeeDialog onCreated={handleEmployeeCreated} />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-border">
