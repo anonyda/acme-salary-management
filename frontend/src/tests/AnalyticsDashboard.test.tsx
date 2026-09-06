@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type AnalyticsSummary, getAnalyticsSummary } from "@/api/client";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
@@ -65,5 +66,64 @@ describe("AnalyticsDashboard", () => {
 
     await waitFor(() => expect(screen.getByText("Failed to load analytics.")).toBeInTheDocument());
     expect(screen.queryByText("Total global payroll")).not.toBeInTheDocument();
+  });
+
+  it("fetches with all filters undefined on initial load", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+
+    expect(mockedGetAnalyticsSummary).toHaveBeenCalledWith({
+      department: undefined,
+      country: undefined,
+      level: undefined,
+    });
+  });
+
+  it("re-fetches with the selected department when that filter changes", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+    mockedGetAnalyticsSummary.mockClear();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(await screen.findByRole("option", { name: "Engineering" }));
+
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenCalledWith({
+        department: "Engineering",
+        country: undefined,
+        level: undefined,
+      }),
+    );
+  });
+
+  it("combines country and level filters into a single query once both change", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Country" }));
+    await user.click(await screen.findByRole("option", { name: "US" }));
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: undefined,
+        country: "US",
+        level: undefined,
+      }),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Level" }));
+    await user.click(await screen.findByRole("option", { name: "L2" }));
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: undefined,
+        country: "US",
+        level: "L2",
+      }),
+    );
   });
 });
