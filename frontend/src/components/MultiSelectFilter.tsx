@@ -9,18 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface MultiSelectFilterProps {
+interface MultiSelectFilterProps<T extends string> {
   label: string;
-  options: string[];
-  selected: string[];
-  onChange: (selected: string[]) => void;
+  options: readonly T[];
+  selected: T[];
+  onChange: (selected: T[]) => void;
 }
 
 // Lets a filter narrow to several values at once (e.g. Engineering + Sales)
 // so their breakdown rows sit side by side for comparison, rather than a
-// single-select that can only drill into one value at a time.
-export function MultiSelectFilter({ label, options, selected, onChange }: MultiSelectFilterProps) {
-  function toggle(option: string) {
+// single-select that can only drill into one value at a time. Generic over
+// the option type so callers get back a typed array (e.g. Department[])
+// instead of a plain string[] that needs an unsafe cast at the call site.
+export function MultiSelectFilter<T extends string>({ label, options, selected, onChange }: MultiSelectFilterProps<T>) {
+  function toggle(option: T) {
     onChange(selected.includes(option) ? selected.filter((o) => o !== option) : [...selected, option]);
   }
 

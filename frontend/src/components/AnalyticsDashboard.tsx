@@ -3,12 +3,15 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import {
   ApiError,
   type AnalyticsSummary,
+  COUNTRIES,
   type Country,
   type CountryBreakdown,
   type CountryDistribution,
+  DEPARTMENTS,
   type Department,
   type DepartmentBreakdown,
   getAnalyticsSummary,
+  LEVELS,
   type Level,
 } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -16,14 +19,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { formatCompactUSD, formatUSD } from "@/lib/currency";
 import { MultiSelectFilter } from "@/components/MultiSelectFilter";
 
-const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
-const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
-const LEVELS: Level[] = ["L1", "L2", "L3", "L4", "L5"];
-
 interface DashboardFilters {
-  department: string[];
-  country: string[];
-  level: string[];
+  department: Department[];
+  country: Country[];
+  level: Level[];
 }
 
 const initialFilters: DashboardFilters = { department: [], country: [], level: [] };
@@ -142,11 +141,7 @@ export function AnalyticsDashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    getAnalyticsSummary({
-      department: filters.department as unknown as Department[],
-      country: filters.country as unknown as Country[],
-      level: filters.level as unknown as Level[],
-    })
+    getAnalyticsSummary(filters)
       .then((res) => {
         if (cancelled) return;
         setSummary(res);
@@ -163,7 +158,7 @@ export function AnalyticsDashboard() {
     };
   }, [filters]);
 
-  function updateFilter(key: keyof DashboardFilters, values: string[]) {
+  function updateFilter<K extends keyof DashboardFilters>(key: K, values: DashboardFilters[K]) {
     setFilters((prev) => ({ ...prev, [key]: values }));
     setStatus("loading");
   }
