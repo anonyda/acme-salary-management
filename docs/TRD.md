@@ -65,6 +65,7 @@ Employee
 ├── id (PK)
 ├── full_name
 ├── email (unique)
+├── gender            (enum: Male, Female, Non-binary, Prefer not to say)
 ├── department        (enum: Engineering, Sales, Marketing, HR, Finance, Operations)
 ├── title
 ├── level             (enum: L1–L5)
