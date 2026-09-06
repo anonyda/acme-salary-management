@@ -103,8 +103,20 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+type TabValue = "employees" | "analytics";
+const DEFAULT_TAB: TabValue = "employees";
+
 export default function App() {
   const health = useHealthCheck();
+  // Tracks which tabs have ever been activated, so each tab's content (and
+  // the fetch it triggers) mounts lazily on first visit instead of both
+  // firing immediately on page load — but once visited, stays mounted
+  // (forceMount) so switching away and back doesn't lose state or re-fetch.
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabValue>>(() => new Set([DEFAULT_TAB]));
+
+  function handleTabChange(value: string) {
+    setVisitedTabs((prev) => (prev.has(value as TabValue) ? prev : new Set(prev).add(value as TabValue)));
+  }
 
   return (
     <div className="min-h-svh bg-background">
@@ -154,26 +166,37 @@ export default function App() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="employees" className="mt-8">
+        <Tabs defaultValue={DEFAULT_TAB} className="mt-8" onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="employees">Employees</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           {/* forceMount + hidden-when-inactive (instead of the default
-              unmount) keeps EmployeeTable's search/filter state intact and
-              lets AnalyticsDashboard's charts keep a measured width, rather
-              than re-fetching and re-measuring from zero every switch. */}
-          <TabsContent value="employees" forceMount className="mt-4 data-[state=inactive]:hidden">
+              unmount), once a tab has been visited, keeps EmployeeTable's
+              search/filter state intact and lets AnalyticsDashboard's charts
+              keep a measured width, rather than re-fetching and
+              re-measuring from zero every switch. Before that first visit,
+              forceMount is left off so the tab's content — and the fetch it
+              triggers — doesn't mount until the user actually opens it. */}
+          <TabsContent
+            value="employees"
+            forceMount={visitedTabs.has("employees") || undefined}
+            className="mt-4 data-[state=inactive]:hidden"
+          >
             <p className="mb-4 text-sm text-muted-foreground">Search, filter, and browse the salary directory.</p>
-            <EmployeeTable />
+            {visitedTabs.has("employees") && <EmployeeTable />}
           </TabsContent>
 
-          <TabsContent value="analytics" forceMount className="mt-4 data-[state=inactive]:hidden">
+          <TabsContent
+            value="analytics"
+            forceMount={visitedTabs.has("analytics") || undefined}
+            className="mt-4 data-[state=inactive]:hidden"
+          >
             <p className="mb-4 text-sm text-muted-foreground">
               Global payroll, headcount, and salary spread — normalized to USD.
             </p>
-            <AnalyticsDashboard />
+            {visitedTabs.has("analytics") && <AnalyticsDashboard />}
           </TabsContent>
         </Tabs>
       </main>
