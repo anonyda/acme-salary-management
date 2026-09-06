@@ -1,4 +1,6 @@
 import type Database from "better-sqlite3";
+import { COUNTRIES, DEPARTMENTS, LEVELS } from "./enums.js";
+import { ValidationError } from "./employees.service.js";
 
 export interface AnalyticsFilters {
   department?: string | string[];
@@ -99,6 +101,19 @@ function normalizeFilter(value: string | string[] | undefined): string[] | null 
   return values.length === 0 ? null : values;
 }
 
+// A typo'd filter value (e.g. ?department=Enginering) would otherwise just
+// match zero rows and return misleadingly "correct-looking" zeroed KPIs
+// instead of surfacing the mistake — same reasoning as validating enum
+// fields on employee create/update.
+function assertKnownValues(fieldName: string, values: string[] | null, allowed: readonly string[]): void {
+  if (values === null) return;
+  for (const value of values) {
+    if (!allowed.includes(value)) {
+      throw new ValidationError(`${fieldName} must be one of ${allowed.join(", ")}`);
+    }
+  }
+}
+
 // Builds an `IN (@p0, @p1, ...)` clause for a normalized filter, or "1=1"
 // (always true) when there's no filter to apply — so a multi-value filter
 // (comparing several departments/countries side by side) is just the
@@ -123,9 +138,16 @@ function buildInClause(
 // filtered, active-only, USD-normalized set of current salaries, so every
 // figure in the response is consistent with every other.
 export function getSummary(db: Database.Database, filters: AnalyticsFilters = {}): AnalyticsSummary {
-  const department = buildInClause("e.department", normalizeFilter(filters.department), "department");
-  const country = buildInClause("e.country", normalizeFilter(filters.country), "country");
-  const level = buildInClause("e.level", normalizeFilter(filters.level), "level");
+  const departmentValues = normalizeFilter(filters.department);
+  const countryValues = normalizeFilter(filters.country);
+  const levelValues = normalizeFilter(filters.level);
+  assertKnownValues("department", departmentValues, DEPARTMENTS);
+  assertKnownValues("country", countryValues, COUNTRIES);
+  assertKnownValues("level", levelValues, LEVELS);
+
+  const department = buildInClause("e.department", departmentValues, "department");
+  const country = buildInClause("e.country", countryValues, "country");
+  const level = buildInClause("e.level", levelValues, "level");
 
   const rows = db
     .prepare(

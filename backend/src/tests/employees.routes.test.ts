@@ -56,6 +56,14 @@ describe("employees routes", () => {
       expect(res.body.total).toBe(1);
       expect(res.body.data[0].full_name).toBe("Owen Reyes");
     });
+
+    it("returns a clean JSON 400 (not silently empty results) for an invalid department filter", async () => {
+      const res = await request(app).get("/api/employees?department=NotADept");
+
+      expect(res.status).toBe(400);
+      expect(res.type).toBe("application/json");
+      expect(res.body).toHaveProperty("error");
+    });
   });
 
   describe("GET /api/employees/:id", () => {

@@ -18,16 +18,23 @@ export function createEmployeesRouter(db: Database.Database): Router {
   router.get("/", (req, res) => {
     const { page, limit, search, department, country, level } = req.query;
 
-    const result = listEmployees(db, {
-      page: page !== undefined ? Number(page) : undefined,
-      limit: limit !== undefined ? Number(limit) : undefined,
-      search: typeof search === "string" ? search : undefined,
-      department: typeof department === "string" ? department : undefined,
-      country: typeof country === "string" ? country : undefined,
-      level: typeof level === "string" ? level : undefined,
-    });
-
-    res.json(result);
+    try {
+      const result = listEmployees(db, {
+        page: page !== undefined ? Number(page) : undefined,
+        limit: limit !== undefined ? Number(limit) : undefined,
+        search: typeof search === "string" ? search : undefined,
+        department: typeof department === "string" ? department : undefined,
+        country: typeof country === "string" ? country : undefined,
+        level: typeof level === "string" ? level : undefined,
+      });
+      res.json(result);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
   });
 
   router.get("/:id", (req, res) => {

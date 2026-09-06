@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { CURRENCIES, COUNTRIES, DEPARTMENTS, GENDERS, LEVELS } from "./enums.js";
 
 export interface ListEmployeesParams {
   page?: number;
@@ -27,6 +28,16 @@ const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
 export function listEmployees(db: Database.Database, params: ListEmployeesParams): ListEmployeesResult {
+  if (params.department !== undefined && !DEPARTMENTS.includes(params.department as (typeof DEPARTMENTS)[number])) {
+    throw new ValidationError(`department must be one of ${DEPARTMENTS.join(", ")}`);
+  }
+  if (params.country !== undefined && !COUNTRIES.includes(params.country as (typeof COUNTRIES)[number])) {
+    throw new ValidationError(`country must be one of ${COUNTRIES.join(", ")}`);
+  }
+  if (params.level !== undefined && !LEVELS.includes(params.level as (typeof LEVELS)[number])) {
+    throw new ValidationError(`level must be one of ${LEVELS.join(", ")}`);
+  }
+
   const page = params.page && params.page > 0 ? Math.floor(params.page) : DEFAULT_PAGE;
   const limit = params.limit && params.limit > 0 ? Math.min(Math.floor(params.limit), MAX_LIMIT) : DEFAULT_LIMIT;
   const offset = (page - 1) * limit;
@@ -131,11 +142,6 @@ export function getEmployeeById(db: Database.Database, id: number): EmployeeWith
 
 export class ValidationError extends Error {}
 
-const SUPPORTED_CURRENCIES = ["USD", "GBP", "INR", "EUR"];
-const SUPPORTED_GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
-const SUPPORTED_DEPARTMENTS = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
-const SUPPORTED_LEVELS = ["L1", "L2", "L3", "L4", "L5"];
-const SUPPORTED_COUNTRIES = ["US", "UK", "IN", "DE"];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -146,18 +152,20 @@ const PROFILE_FIELD_VALIDATORS: Record<string, (value: unknown) => string | null
   full_name: (v) => (typeof v === "string" && v.trim() !== "" ? null : "full_name must be a non-empty string"),
   email: (v) => (typeof v === "string" && EMAIL_PATTERN.test(v) ? null : "email must be a valid email address"),
   gender: (v) =>
-    typeof v === "string" && SUPPORTED_GENDERS.includes(v) ? null : `gender must be one of ${SUPPORTED_GENDERS.join(", ")}`,
-  department: (v) =>
-    typeof v === "string" && SUPPORTED_DEPARTMENTS.includes(v)
+    typeof v === "string" && GENDERS.includes(v as (typeof GENDERS)[number])
       ? null
-      : `department must be one of ${SUPPORTED_DEPARTMENTS.join(", ")}`,
+      : `gender must be one of ${GENDERS.join(", ")}`,
+  department: (v) =>
+    typeof v === "string" && DEPARTMENTS.includes(v as (typeof DEPARTMENTS)[number])
+      ? null
+      : `department must be one of ${DEPARTMENTS.join(", ")}`,
   title: (v) => (typeof v === "string" && v.trim() !== "" ? null : "title must be a non-empty string"),
   level: (v) =>
-    typeof v === "string" && SUPPORTED_LEVELS.includes(v) ? null : `level must be one of ${SUPPORTED_LEVELS.join(", ")}`,
+    typeof v === "string" && LEVELS.includes(v as (typeof LEVELS)[number]) ? null : `level must be one of ${LEVELS.join(", ")}`,
   country: (v) =>
-    typeof v === "string" && SUPPORTED_COUNTRIES.includes(v)
+    typeof v === "string" && COUNTRIES.includes(v as (typeof COUNTRIES)[number])
       ? null
-      : `country must be one of ${SUPPORTED_COUNTRIES.join(", ")}`,
+      : `country must be one of ${COUNTRIES.join(", ")}`,
   hire_date: (v) => (typeof v === "string" && DATE_PATTERN.test(v) ? null : "hire_date must be a YYYY-MM-DD date"),
   manager_id: (v) => (v === null || typeof v === "number" ? null : "manager_id must be a number or null"),
 };
@@ -216,8 +224,8 @@ export function createEmployee(db: Database.Database, input: CreateEmployeeInput
   if (!(input.salary.amount > 0)) {
     throw new ValidationError("Salary amount must be positive");
   }
-  if (!SUPPORTED_CURRENCIES.includes(input.salary.currency)) {
-    throw new ValidationError(`Currency must be one of ${SUPPORTED_CURRENCIES.join(", ")}`);
+  if (!CURRENCIES.includes(input.salary.currency as (typeof CURRENCIES)[number])) {
+    throw new ValidationError(`Currency must be one of ${CURRENCIES.join(", ")}`);
   }
   assertEmailAvailable(db, input.email);
   if (input.manager_id != null) {
@@ -266,8 +274,8 @@ export function updateSalary(db: Database.Database, employeeId: number, input: U
   if (!(input.amount > 0)) {
     throw new ValidationError("Salary amount must be positive");
   }
-  if (!SUPPORTED_CURRENCIES.includes(input.currency)) {
-    throw new ValidationError(`Currency must be one of ${SUPPORTED_CURRENCIES.join(", ")}`);
+  if (!CURRENCIES.includes(input.currency as (typeof CURRENCIES)[number])) {
+    throw new ValidationError(`Currency must be one of ${CURRENCIES.join(", ")}`);
   }
 
   const employee = db.prepare("SELECT id FROM employees WHERE id = @id").get({ id: employeeId });

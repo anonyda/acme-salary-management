@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createConnection } from "../db/connection.js";
 import { calculateMedian, getSummary } from "../services/analytics.service.js";
+import { ValidationError } from "../services/employees.service.js";
 
 describe("calculateMedian", () => {
   it("returns the middle value for an odd-length sorted array", () => {
@@ -224,6 +225,18 @@ describe("getSummary", () => {
     const summary = getSummary(db, { department: [] });
 
     expect(summary.kpis.activeHeadcount).toBe(5);
+  });
+
+  it.each([
+    ["department", "NotADept"],
+    ["country", "XX"],
+    ["level", "L99"],
+  ])("rejects an invalid %s filter instead of silently matching nothing", (field, value) => {
+    expect(() => getSummary(db, { [field]: value })).toThrow(ValidationError);
+  });
+
+  it("rejects an invalid value inside a multi-value filter array", () => {
+    expect(() => getSummary(db, { country: ["US", "XX"] })).toThrow(ValidationError);
   });
 
   it("combines a multi-value filter with a scalar filter using AND semantics", () => {

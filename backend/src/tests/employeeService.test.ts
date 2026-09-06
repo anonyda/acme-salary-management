@@ -132,6 +132,14 @@ describe("listEmployees", () => {
     expect(result.data.map((e: any) => e.full_name)).toEqual(["Alice Johnson", "Grace Hopper"]);
   });
 
+  it.each([
+    ["department", "NotADept"],
+    ["country", "XX"],
+    ["level", "L99"],
+  ])("rejects an invalid %s filter instead of silently matching nothing", (field, value) => {
+    expect(() => listEmployees(db, { [field]: value })).toThrow(ValidationError);
+  });
+
   it("includes each employee's current salary, in native currency", () => {
     const result = listEmployees(db, {});
 

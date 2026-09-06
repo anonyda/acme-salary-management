@@ -136,6 +136,14 @@ describe("GET /api/analytics/summary", () => {
     expect(res.body.distributionByCountry).toEqual([]);
   });
 
+  it("returns a clean JSON 400 (not silently empty results) for an invalid department filter", async () => {
+    const res = await request(app).get("/api/analytics/summary").query({ department: "NotADept" });
+
+    expect(res.status).toBe(400);
+    expect(res.type).toBe("application/json");
+    expect(res.body).toHaveProperty("error");
+  });
+
   it("accepts a repeated department param as a multi-value filter for comparison", async () => {
     const res = await request(app).get("/api/analytics/summary?department=Engineering&department=Sales");
 

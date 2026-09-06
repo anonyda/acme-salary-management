@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { Router } from "express";
 import { getSummary } from "../services/analytics.service.js";
+import { ValidationError } from "../services/employees.service.js";
 
 // Accepts either a single value (?department=Engineering) or a repeated
 // param (?department=Engineering&department=Sales) for side-by-side
@@ -17,13 +18,21 @@ export function createAnalyticsRouter(db: Database.Database): Router {
   const router = Router();
 
   router.get("/summary", (req, res) => {
-    res.json(
-      getSummary(db, {
-        department: parseFilterParam(req.query.department),
-        country: parseFilterParam(req.query.country),
-        level: parseFilterParam(req.query.level),
-      }),
-    );
+    try {
+      res.json(
+        getSummary(db, {
+          department: parseFilterParam(req.query.department),
+          country: parseFilterParam(req.query.country),
+          level: parseFilterParam(req.query.level),
+        }),
+      );
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
   });
 
   return router;
