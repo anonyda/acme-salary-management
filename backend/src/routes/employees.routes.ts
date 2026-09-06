@@ -69,6 +69,10 @@ export function createEmployeesRouter(db: Database.Database): Router {
       const employee = updateEmployee(db, id, req.body);
       res.json(employee);
     } catch (err) {
+      if (err instanceof ValidationError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
       if (err instanceof NotFoundError) {
         res.status(404).json({ error: err.message });
         return;

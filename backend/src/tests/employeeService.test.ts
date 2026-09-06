@@ -241,6 +241,48 @@ describe("createEmployee", () => {
       createEmployee(db, { ...validInput, salary: { amount: 95000, currency: "XXX" } }),
     ).toThrow(ValidationError);
   });
+
+  it("rejects a request body that isn't an object", () => {
+    expect(() => createEmployee(db, null as any)).toThrow(ValidationError);
+    expect(() => createEmployee(db, "oops" as any)).toThrow(ValidationError);
+    expect(() => createEmployee(db, [] as any)).toThrow(ValidationError);
+  });
+
+  it("rejects a missing salary object, instead of crashing", () => {
+    const { salary: _salary, ...withoutSalary } = validInput;
+    expect(() => createEmployee(db, withoutSalary as any)).toThrow(ValidationError);
+  });
+
+  it.each(["full_name", "email", "title", "hire_date"])("rejects an empty %s", (field) => {
+    expect(() => createEmployee(db, { ...validInput, [field]: "" })).toThrow(ValidationError);
+  });
+
+  it("rejects a malformed email", () => {
+    expect(() => createEmployee(db, { ...validInput, email: "not-an-email" })).toThrow(ValidationError);
+  });
+
+  it.each(["gender", "department", "level", "country"])("rejects an invalid %s", (field) => {
+    expect(() => createEmployee(db, { ...validInput, [field]: "NotAValidValue" })).toThrow(ValidationError);
+  });
+
+  it("rejects a malformed hire_date", () => {
+    expect(() => createEmployee(db, { ...validInput, hire_date: "not-a-date" })).toThrow(ValidationError);
+  });
+
+  it("rejects a duplicate email", () => {
+    createEmployee(db, validInput);
+    expect(() => createEmployee(db, { ...validInput, full_name: "Someone Else" })).toThrow(ValidationError);
+  });
+
+  it("rejects a manager_id that doesn't reference an existing employee", () => {
+    expect(() => createEmployee(db, { ...validInput, manager_id: 999 })).toThrow(ValidationError);
+  });
+
+  it("accepts a manager_id that references an existing employee", () => {
+    const manager = createEmployee(db, validInput);
+    const report = createEmployee(db, { ...validInput, email: "report@acme.test", manager_id: manager.id });
+    expect(report.manager_id).toBe(manager.id);
+  });
 });
 
 describe("updateSalary", () => {
@@ -368,5 +410,39 @@ describe("updateEmployee", () => {
 
   it("throws NotFoundError for an unknown employee id", () => {
     expect(() => updateEmployee(db, 999, { full_name: "Nobody" })).toThrow(NotFoundError);
+  });
+
+  it.each(["gender", "department", "level", "country"])("rejects an invalid %s", (field) => {
+    expect(() => updateEmployee(db, 1, { [field]: "NotAValidValue" } as any)).toThrow(ValidationError);
+  });
+
+  it("rejects an empty full_name", () => {
+    expect(() => updateEmployee(db, 1, { full_name: "" })).toThrow(ValidationError);
+  });
+
+  it("rejects a malformed email", () => {
+    expect(() => updateEmployee(db, 1, { email: "not-an-email" })).toThrow(ValidationError);
+  });
+
+  it("rejects a malformed hire_date", () => {
+    expect(() => updateEmployee(db, 1, { hire_date: "not-a-date" })).toThrow(ValidationError);
+  });
+
+  it("rejects an email already used by another employee", () => {
+    db.prepare(`
+      INSERT INTO employees (full_name, email, gender, department, title, level, country, hire_date)
+      VALUES ('Owen Reyes', 'owen.reyes@acme.test', 'Male', 'Engineering', 'Software Engineer', 'L2', 'US', '2022-03-01')
+    `).run();
+
+    expect(() => updateEmployee(db, 1, { email: "owen.reyes@acme.test" })).toThrow(ValidationError);
+  });
+
+  it("allows an employee to keep their own email unchanged", () => {
+    const employee = updateEmployee(db, 1, { email: "nina.patel@acme.test", full_name: "Nina Patel" });
+    expect(employee.email).toBe("nina.patel@acme.test");
+  });
+
+  it("rejects a manager_id that doesn't reference an existing employee", () => {
+    expect(() => updateEmployee(db, 1, { manager_id: 999 })).toThrow(ValidationError);
   });
 });

@@ -114,6 +114,30 @@ describe("employees routes", () => {
 
       expect(res.status).toBe(400);
     });
+
+    it("returns a clean JSON 400 (not a raw stack trace) for a missing salary object", async () => {
+      const { salary: _salary, ...withoutSalary } = validBody;
+      const res = await request(app).post("/api/employees").send(withoutSalary);
+
+      expect(res.status).toBe(400);
+      expect(res.type).toBe("application/json");
+      expect(res.body).toHaveProperty("error");
+    });
+
+    it("returns a clean JSON 400 (not a raw stack trace) for an invalid department", async () => {
+      const res = await request(app).post("/api/employees").send({ ...validBody, department: "NotADept" });
+
+      expect(res.status).toBe(400);
+      expect(res.type).toBe("application/json");
+      expect(res.body).toHaveProperty("error");
+    });
+
+    it("returns 400 for a duplicate email", async () => {
+      await request(app).post("/api/employees").send(validBody);
+      const res = await request(app).post("/api/employees").send({ ...validBody, full_name: "Someone Else" });
+
+      expect(res.status).toBe(400);
+    });
   });
 
   describe("PATCH /api/employees/:id/salary", () => {
@@ -182,5 +206,24 @@ describe("employees routes", () => {
       const res = await request(app).patch("/api/employees/999").send({ department: "Operations" });
       expect(res.status).toBe(404);
     });
+
+    it("returns a clean JSON 400 (not a raw stack trace) for an invalid level", async () => {
+      const res = await request(app).patch("/api/employees/1").send({ level: "L99" });
+
+      expect(res.status).toBe(400);
+      expect(res.type).toBe("application/json");
+      expect(res.body).toHaveProperty("error");
+    });
+  });
+
+  it("returns a clean JSON 400 (not a raw stack trace) for a malformed JSON body", async () => {
+    const res = await request(app)
+      .post("/api/employees")
+      .set("Content-Type", "application/json")
+      .send("{not valid json");
+
+    expect(res.status).toBe(400);
+    expect(res.type).toBe("application/json");
+    expect(res.body).toHaveProperty("error");
   });
 });

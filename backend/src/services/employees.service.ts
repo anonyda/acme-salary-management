@@ -132,6 +132,61 @@ export function getEmployeeById(db: Database.Database, id: number): EmployeeWith
 export class ValidationError extends Error {}
 
 const SUPPORTED_CURRENCIES = ["USD", "GBP", "INR", "EUR"];
+const SUPPORTED_GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
+const SUPPORTED_DEPARTMENTS = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
+const SUPPORTED_LEVELS = ["L1", "L2", "L3", "L4", "L5"];
+const SUPPORTED_COUNTRIES = ["US", "UK", "IN", "DE"];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+// Format/enum checks only — a null-check for values missing entirely is the
+// caller's job, since "required" vs. "optional if provided" differs between
+// createEmployee (every field required) and updateEmployee (partial patch).
+const PROFILE_FIELD_VALIDATORS: Record<string, (value: unknown) => string | null> = {
+  full_name: (v) => (typeof v === "string" && v.trim() !== "" ? null : "full_name must be a non-empty string"),
+  email: (v) => (typeof v === "string" && EMAIL_PATTERN.test(v) ? null : "email must be a valid email address"),
+  gender: (v) =>
+    typeof v === "string" && SUPPORTED_GENDERS.includes(v) ? null : `gender must be one of ${SUPPORTED_GENDERS.join(", ")}`,
+  department: (v) =>
+    typeof v === "string" && SUPPORTED_DEPARTMENTS.includes(v)
+      ? null
+      : `department must be one of ${SUPPORTED_DEPARTMENTS.join(", ")}`,
+  title: (v) => (typeof v === "string" && v.trim() !== "" ? null : "title must be a non-empty string"),
+  level: (v) =>
+    typeof v === "string" && SUPPORTED_LEVELS.includes(v) ? null : `level must be one of ${SUPPORTED_LEVELS.join(", ")}`,
+  country: (v) =>
+    typeof v === "string" && SUPPORTED_COUNTRIES.includes(v)
+      ? null
+      : `country must be one of ${SUPPORTED_COUNTRIES.join(", ")}`,
+  hire_date: (v) => (typeof v === "string" && DATE_PATTERN.test(v) ? null : "hire_date must be a YYYY-MM-DD date"),
+  manager_id: (v) => (v === null || typeof v === "number" ? null : "manager_id must be a number or null"),
+};
+
+function assertValidProfileField(field: string, value: unknown): void {
+  const error = PROFILE_FIELD_VALIDATORS[field]?.(value);
+  if (error) throw new ValidationError(error);
+}
+
+// Existence check for a self-referencing FK — SQLite would otherwise throw
+// an unhandled "FOREIGN KEY constraint failed" instead of a clean 400.
+function assertManagerExists(db: Database.Database, managerId: number, employeeId?: number): void {
+  const manager = db.prepare("SELECT id FROM employees WHERE id = @id").get({ id: managerId });
+  if (!manager) throw new ValidationError(`manager_id ${managerId} does not reference an existing employee`);
+  if (managerId === employeeId) throw new ValidationError("An employee cannot be their own manager");
+}
+
+// Application-level check for a friendly ValidationError instead of the raw
+// "UNIQUE constraint failed" SqliteError the schema's unique index would
+// otherwise throw uncaught. excludeEmployeeId lets an employee keep their
+// own unchanged email during a profile update.
+function assertEmailAvailable(db: Database.Database, email: string, excludeEmployeeId?: number): void {
+  const existing = db.prepare("SELECT id FROM employees WHERE email = @email").get({ email }) as
+    | { id: number }
+    | undefined;
+  if (existing && existing.id !== excludeEmployeeId) {
+    throw new ValidationError(`Email ${email} is already in use`);
+  }
+}
 
 export interface CreateEmployeeInput {
   full_name: string;
@@ -146,12 +201,28 @@ export interface CreateEmployeeInput {
   salary: { amount: number; currency: string };
 }
 
+const REQUIRED_PROFILE_FIELDS = ["full_name", "email", "gender", "department", "title", "level", "country", "hire_date"] as const;
+
 export function createEmployee(db: Database.Database, input: CreateEmployeeInput): EmployeeWithSalary {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    throw new ValidationError("Request body must be an object");
+  }
+  for (const field of REQUIRED_PROFILE_FIELDS) {
+    assertValidProfileField(field, input[field]);
+  }
+  if (typeof input.salary !== "object" || input.salary === null) {
+    throw new ValidationError("salary is required");
+  }
   if (!(input.salary.amount > 0)) {
     throw new ValidationError("Salary amount must be positive");
   }
   if (!SUPPORTED_CURRENCIES.includes(input.salary.currency)) {
     throw new ValidationError(`Currency must be one of ${SUPPORTED_CURRENCIES.join(", ")}`);
+  }
+  assertEmailAvailable(db, input.email);
+  if (input.manager_id != null) {
+    assertValidProfileField("manager_id", input.manager_id);
+    assertManagerExists(db, input.manager_id);
   }
 
   const { lastInsertRowid } = db
@@ -256,6 +327,16 @@ export function updateEmployee(db: Database.Database, id: number, input: UpdateE
       throw new NotFoundError(`Employee ${id} not found`);
     }
     return getEmployeeById(db, id) as EmployeeWithSalary;
+  }
+
+  for (const field of fieldsToUpdate) {
+    assertValidProfileField(field, input[field]);
+  }
+  if (typeof input.email === "string") {
+    assertEmailAvailable(db, input.email, id);
+  }
+  if (input.manager_id != null) {
+    assertManagerExists(db, input.manager_id as number, id);
   }
 
   const setClause = fieldsToUpdate.map((field) => `${field} = @${field}`).join(", ");
