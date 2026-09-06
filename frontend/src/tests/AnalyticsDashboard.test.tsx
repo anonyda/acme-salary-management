@@ -39,7 +39,18 @@ describe("AnalyticsDashboard", () => {
     render(<AnalyticsDashboard />);
 
     expect(await screen.findByText("Total global payroll")).toBeInTheDocument();
-    expect(screen.getByText("$620.0M")).toBeInTheDocument();
+    // Node's Intl.NumberFormat compact-notation trailing-zero behavior
+    // differs by version (Node 22: "$620.0M", Node 24: "$620M") — this
+    // assertion matches whichever Node this test suite is currently
+    // running under, since it's the runtime formatting behavior under
+    // test, not a fixed string this app controls.
+    expect(
+      screen.getByText(
+        new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(
+          620_000_000,
+        ),
+      ),
+    ).toBeInTheDocument();
 
     expect(screen.getByText("Active headcount")).toBeInTheDocument();
     expect(screen.getByText("9,622")).toBeInTheDocument();
