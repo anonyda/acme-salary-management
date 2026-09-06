@@ -1,9 +1,11 @@
-import { Activity, BarChart3 } from "lucide-react";
+import { Activity } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ApiError, checkHealth } from "@/api/client";
+import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { EmployeeTable } from "@/components/EmployeeTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ConnectionState = "checking" | "connected" | "error";
 
@@ -107,7 +109,7 @@ export default function App() {
   return (
     <div className="min-h-svh bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-baseline gap-3">
             <span className="text-lg font-semibold tracking-tight">Acme</span>
             <span className="hidden text-xs tracking-wide text-muted-foreground sm:inline">Salary Management</span>
@@ -116,19 +118,10 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-14">
-        <div className="max-w-2xl">
-          <p className="font-mono text-xs tracking-wide text-primary">Backend v0.1</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            One system of record for every salary at Acme.
-          </h1>
-          <p className="mt-4 text-pretty text-base text-muted-foreground">
-            Replacing the spreadsheet with a searchable system of record and a straight answer to "what do we
-            actually pay people?" — by department, by country, in real time.
-          </p>
-        </div>
+      <main className="mx-auto max-w-6xl px-6 py-8">
+        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
 
-        <Card className="mt-10 gap-0 overflow-hidden py-0">
+        <Card className="mt-4 gap-0 overflow-hidden py-0">
           <CardHeader className="flex-row items-center justify-between border-b border-border py-4">
             <div>
               <CardTitle className="flex items-center gap-2 text-sm font-medium">
@@ -161,23 +154,28 @@ export default function App() {
           </CardContent>
         </Card>
 
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold tracking-tight">Employees</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Search, filter, and browse the salary directory.</p>
-          <div className="mt-4">
-            <EmployeeTable />
-          </div>
-        </section>
+        <Tabs defaultValue="employees" className="mt-8">
+          <TabsList>
+            <TabsTrigger value="employees">Employees</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-        <Card className="mt-6 border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <BarChart3 className="size-4 text-muted-foreground" />
-              Pay analytics
-            </CardTitle>
-            <CardDescription>Average salary and payroll cost by department and country.</CardDescription>
-          </CardHeader>
-        </Card>
+          {/* forceMount + hidden-when-inactive (instead of the default
+              unmount) keeps EmployeeTable's search/filter state intact and
+              lets AnalyticsDashboard's charts keep a measured width, rather
+              than re-fetching and re-measuring from zero every switch. */}
+          <TabsContent value="employees" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <p className="mb-4 text-sm text-muted-foreground">Search, filter, and browse the salary directory.</p>
+            <EmployeeTable />
+          </TabsContent>
+
+          <TabsContent value="analytics" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <p className="mb-4 text-sm text-muted-foreground">
+              Global payroll, headcount, and salary spread — normalized to USD.
+            </p>
+            <AnalyticsDashboard />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
