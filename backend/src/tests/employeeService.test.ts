@@ -22,22 +22,27 @@ import {
 //   6. Frank Ocean    | Marketing   | IN | L1
 //   7. Grace Hopper   | Engineering | US | L3
 const FIXTURE_EMPLOYEES = [
-  { fullName: "Alice Johnson", email: "alice.johnson@acme.test", department: "Engineering", country: "US", level: "L2" },
-  { fullName: "Alicia Keys", email: "alicia.keys@acme.test", department: "Sales", country: "US", level: "L2" },
-  { fullName: "Bob Smith", email: "bob.smith@acme.test", department: "Sales", country: "UK", level: "L1" },
-  { fullName: "Carol Diaz", email: "carol.diaz@acme.test", department: "Marketing", country: "IN", level: "L3" },
-  { fullName: "David Lee", email: "david.lee@acme.test", department: "Engineering", country: "UK", level: "L1" },
-  { fullName: "Frank Ocean", email: "frank.ocean@acme.test", department: "Marketing", country: "IN", level: "L1" },
-  { fullName: "Grace Hopper", email: "grace.hopper@acme.test", department: "Engineering", country: "US", level: "L3" },
+  { fullName: "Alice Johnson", email: "alice.johnson@acme.test", department: "Engineering", country: "US", level: "L2", amount: 90000, currency: "USD" },
+  { fullName: "Alicia Keys", email: "alicia.keys@acme.test", department: "Sales", country: "US", level: "L2", amount: 85000, currency: "USD" },
+  { fullName: "Bob Smith", email: "bob.smith@acme.test", department: "Sales", country: "UK", level: "L1", amount: 40000, currency: "GBP" },
+  { fullName: "Carol Diaz", email: "carol.diaz@acme.test", department: "Marketing", country: "IN", level: "L3", amount: 1_800_000, currency: "INR" },
+  { fullName: "David Lee", email: "david.lee@acme.test", department: "Engineering", country: "UK", level: "L1", amount: 35000, currency: "GBP" },
+  { fullName: "Frank Ocean", email: "frank.ocean@acme.test", department: "Marketing", country: "IN", level: "L1", amount: 700000, currency: "INR" },
+  { fullName: "Grace Hopper", email: "grace.hopper@acme.test", department: "Engineering", country: "US", level: "L3", amount: 120000, currency: "USD" },
 ];
 
 function seedFixture(db: Database.Database): void {
-  const insert = db.prepare(`
+  const insertEmployee = db.prepare(`
     INSERT INTO employees (full_name, email, department, title, level, country, hire_date)
     VALUES (@fullName, @email, @department, 'Employee', @level, @country, '2022-01-01')
   `);
+  const insertSalary = db.prepare(`
+    INSERT INTO salaries (employee_id, amount, currency, effective_date, is_current)
+    VALUES (@employeeId, @amount, @currency, '2022-01-01', 1)
+  `);
   for (const employee of FIXTURE_EMPLOYEES) {
-    insert.run(employee);
+    const { lastInsertRowid: employeeId } = insertEmployee.run(employee);
+    insertSalary.run({ employeeId, amount: employee.amount, currency: employee.currency });
   }
 }
 
@@ -125,6 +130,20 @@ describe("listEmployees", () => {
 
     expect(result.total).toBe(2);
     expect(result.data.map((e: any) => e.full_name)).toEqual(["Alice Johnson", "Grace Hopper"]);
+  });
+
+  it("includes each employee's current salary, in native currency", () => {
+    const result = listEmployees(db, {});
+
+    expect(result.data.map((e: any) => ({ full_name: e.full_name, salary: e.salary }))).toEqual([
+      { full_name: "Alice Johnson", salary: { amount: 90000, currency: "USD", effective_date: "2022-01-01" } },
+      { full_name: "Alicia Keys", salary: { amount: 85000, currency: "USD", effective_date: "2022-01-01" } },
+      { full_name: "Bob Smith", salary: { amount: 40000, currency: "GBP", effective_date: "2022-01-01" } },
+      { full_name: "Carol Diaz", salary: { amount: 1_800_000, currency: "INR", effective_date: "2022-01-01" } },
+      { full_name: "David Lee", salary: { amount: 35000, currency: "GBP", effective_date: "2022-01-01" } },
+      { full_name: "Frank Ocean", salary: { amount: 700000, currency: "INR", effective_date: "2022-01-01" } },
+      { full_name: "Grace Hopper", salary: { amount: 120000, currency: "USD", effective_date: "2022-01-01" } },
+    ]);
   });
 });
 

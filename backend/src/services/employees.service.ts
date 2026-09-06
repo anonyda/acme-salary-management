@@ -9,8 +9,14 @@ export interface ListEmployeesParams {
   level?: string;
 }
 
+export interface CurrentSalary {
+  amount: number;
+  currency: string;
+  effective_date: string;
+}
+
 export interface ListEmployeesResult {
-  data: unknown[];
+  data: (Record<string, unknown> & { salary: CurrentSalary | null })[];
   page: number;
   limit: number;
   total: number;
@@ -29,39 +35,52 @@ export function listEmployees(db: Database.Database, params: ListEmployeesParams
   const values: Record<string, string> = {};
 
   if (params.search) {
-    conditions.push("(full_name LIKE @search OR email LIKE @search)");
+    conditions.push("(e.full_name LIKE @search OR e.email LIKE @search)");
     values.search = `%${params.search}%`;
   }
   if (params.department) {
-    conditions.push("department = @department");
+    conditions.push("e.department = @department");
     values.department = params.department;
   }
   if (params.country) {
-    conditions.push("country = @country");
+    conditions.push("e.country = @country");
     values.country = params.country;
   }
   if (params.level) {
-    conditions.push("level = @level");
+    conditions.push("e.level = @level");
     values.level = params.level;
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const total = (
-    db.prepare(`SELECT COUNT(*) AS count FROM employees ${whereClause}`).get(values) as { count: number }
+    db.prepare(`SELECT COUNT(*) AS count FROM employees e ${whereClause}`).get(values) as { count: number }
   ).count;
 
-  const data = db
-    .prepare(`SELECT * FROM employees ${whereClause} ORDER BY full_name ASC LIMIT @limit OFFSET @offset`)
-    .all({ ...values, limit, offset });
+  const rows = db
+    .prepare(
+      `SELECT e.*, s.amount AS salary_amount, s.currency AS salary_currency, s.effective_date AS salary_effective_date
+       FROM employees e
+       LEFT JOIN salaries s ON s.employee_id = e.id AND s.is_current = 1
+       ${whereClause}
+       ORDER BY e.full_name ASC
+       LIMIT @limit OFFSET @offset`,
+    )
+    .all({ ...values, limit, offset }) as (Record<string, unknown> & {
+    salary_amount: number | null;
+    salary_currency: string | null;
+    salary_effective_date: string | null;
+  })[];
+
+  const data = rows.map(({ salary_amount, salary_currency, salary_effective_date, ...employee }) => ({
+    ...employee,
+    salary:
+      salary_amount != null
+        ? { amount: salary_amount, currency: salary_currency as string, effective_date: salary_effective_date as string }
+        : null,
+  }));
 
   return { data, page, limit, total };
-}
-
-export interface CurrentSalary {
-  amount: number;
-  currency: string;
-  effective_date: string;
 }
 
 export interface EmployeeWithSalary {
