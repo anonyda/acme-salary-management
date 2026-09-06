@@ -331,10 +331,11 @@ export function updateEmployee(db: Database.Database, id: number, input: UpdateE
   const fieldsToUpdate = UPDATABLE_PROFILE_FIELDS.filter((field) => field in input);
 
   if (fieldsToUpdate.length === 0) {
-    if (!getEmployeeById(db, id)) {
+    const employee = getEmployeeById(db, id);
+    if (!employee) {
       throw new NotFoundError(`Employee ${id} not found`);
     }
-    return getEmployeeById(db, id) as EmployeeWithSalary;
+    return employee;
   }
 
   for (const field of fieldsToUpdate) {
