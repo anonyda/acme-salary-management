@@ -24,6 +24,7 @@ const sampleEmployee: Employee = {
   status: "active",
   created_at: "2022-01-01",
   updated_at: "2022-01-01",
+  salary: { amount: 90000, currency: "USD", effective_date: "2022-01-01" },
 };
 
 function makeResponse(overrides: Partial<ListEmployeesResponse> = {}): ListEmployeesResponse {

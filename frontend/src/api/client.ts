@@ -27,11 +27,12 @@ export interface Employee {
   status: EmployeeStatus;
   created_at: string;
   updated_at: string;
-}
-
-export interface EmployeeWithSalary extends Employee {
   salary: CurrentSalary | null;
 }
+
+export type EmployeeWithSalary = Employee;
+
+export const SUPPORTED_CURRENCIES: Currency[] = ["USD", "GBP", "INR", "EUR"];
 
 export interface ListEmployeesParams {
   page?: number;

@@ -1,11 +1,22 @@
+import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ApiError, type Country, type Department, type Employee, type Level, listEmployees } from "@/api/client";
+import {
+  ApiError,
+  type Country,
+  type Department,
+  type Employee,
+  type EmployeeWithSalary,
+  type Level,
+  listEmployees,
+} from "@/api/client";
+import { EmployeeDetailModal, type EmployeeDetailMode } from "@/components/EmployeeDetailModal";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { formatCurrency } from "@/lib/currency";
 
 const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
 const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
@@ -66,6 +77,13 @@ export function EmployeeTable() {
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [detailMode, setDetailMode] = useState<EmployeeDetailMode>("view");
+
+  function openDetail(employeeId: number, mode: EmployeeDetailMode) {
+    setSelectedEmployeeId(employeeId);
+    setDetailMode(mode);
+  }
 
   // Bridges the debounced search text into `query` (resetting to page 1)
   // as a render-phase state adjustment rather than an effect — React's
@@ -128,6 +146,10 @@ export function EmployeeTable() {
     setStatus("loading");
   }
 
+  function handleSalaryUpdated(updated: EmployeeWithSalary) {
+    setEmployees((prev) => prev.map((e) => (e.id === updated.id ? { ...e, salary: updated.salary } : e)));
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const rangeStart = total === 0 ? 0 : (query.page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(query.page * PAGE_SIZE, total);
@@ -174,27 +196,31 @@ export function EmployeeTable() {
               <TableHead>Department</TableHead>
               <TableHead>Level</TableHead>
               <TableHead>Country</TableHead>
+              <TableHead>Salary</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-px">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {status === "loading" && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   Loading employees…
                 </TableCell>
               </TableRow>
             )}
             {status === "error" && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-destructive">
+                <TableCell colSpan={8} className="py-8 text-center text-destructive">
                   {errorMessage}
                 </TableCell>
               </TableRow>
             )}
             {status === "idle" && employees.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   No employees found.
                 </TableCell>
               </TableRow>
@@ -202,11 +228,22 @@ export function EmployeeTable() {
             {status === "idle" &&
               employees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.full_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <button
+                      type="button"
+                      className="hover:underline focus-visible:underline focus-visible:outline-none"
+                      onClick={() => openDetail(employee.id, "view")}
+                    >
+                      {employee.full_name}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{employee.email}</TableCell>
                   <TableCell>{employee.department}</TableCell>
                   <TableCell className="font-mono">{employee.level}</TableCell>
                   <TableCell>{employee.country}</TableCell>
+                  <TableCell className="font-mono">
+                    {employee.salary ? formatCurrency(employee.salary.amount, employee.salary.currency) : "—"}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -217,11 +254,28 @@ export function EmployeeTable() {
                       {employee.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Edit salary for ${employee.full_name}`}
+                      onClick={() => openDetail(employee.id, "edit")}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
           </TableBody>
         </Table>
       </div>
+
+      <EmployeeDetailModal
+        employeeId={selectedEmployeeId}
+        mode={detailMode}
+        onClose={() => setSelectedEmployeeId(null)}
+        onSalaryUpdated={handleSalaryUpdated}
+      />
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span className="font-mono text-xs">
