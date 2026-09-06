@@ -82,9 +82,9 @@ export interface UpdateSalaryInput {
 }
 
 export interface AnalyticsFilters {
-  department?: Department;
-  country?: Country;
-  level?: Level;
+  department?: Department | Department[];
+  country?: Country | Country[];
+  level?: Level | Level[];
 }
 
 export interface AnalyticsKpis {
@@ -156,7 +156,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 function toQueryString(params: object): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
-    if (value !== undefined && value !== "") query.set(key, String(value));
+    if (value === undefined || value === "") continue;
+    if (Array.isArray(value)) {
+      for (const item of value) query.append(key, String(item));
+    } else {
+      query.set(key, String(value));
+    }
   }
   const qs = query.toString();
   return qs ? `?${qs}` : "";

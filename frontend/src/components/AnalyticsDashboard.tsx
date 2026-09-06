@@ -13,53 +13,22 @@ import {
 } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCompactUSD, formatUSD } from "@/lib/currency";
+import { MultiSelectFilter } from "@/components/MultiSelectFilter";
 
 const DEPARTMENTS: Department[] = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations"];
 const COUNTRIES: Country[] = ["US", "UK", "IN", "DE"];
 const LEVELS: Level[] = ["L1", "L2", "L3", "L4", "L5"];
 
-// Sentinel for "no filter" — Radix Select doesn't allow an empty-string item value.
-const ALL = "all";
-
 interface DashboardFilters {
-  department: string;
-  country: string;
-  level: string;
+  department: string[];
+  country: string[];
+  level: string[];
 }
 
-const initialFilters: DashboardFilters = { department: ALL, country: ALL, level: ALL };
+const initialFilters: DashboardFilters = { department: [], country: [], level: [] };
 
 type LoadStatus = "loading" | "idle" | "error";
-
-function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} size="sm">
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>All {label.toLowerCase()}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option} value={option}>
-            {option}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -174,9 +143,9 @@ export function AnalyticsDashboard() {
     let cancelled = false;
 
     getAnalyticsSummary({
-      department: filters.department === ALL ? undefined : (filters.department as Department),
-      country: filters.country === ALL ? undefined : (filters.country as Country),
-      level: filters.level === ALL ? undefined : (filters.level as Level),
+      department: filters.department as unknown as Department[],
+      country: filters.country as unknown as Country[],
+      level: filters.level as unknown as Level[],
     })
       .then((res) => {
         if (cancelled) return;
@@ -194,12 +163,13 @@ export function AnalyticsDashboard() {
     };
   }, [filters]);
 
-  function updateFilter(key: keyof DashboardFilters, value: string) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  function updateFilter(key: keyof DashboardFilters, values: string[]) {
+    setFilters((prev) => ({ ...prev, [key]: values }));
     setStatus("loading");
   }
 
-  const hasActiveFilters = filters.department !== ALL || filters.country !== ALL || filters.level !== ALL;
+  const hasActiveFilters =
+    filters.department.length > 0 || filters.country.length > 0 || filters.level.length > 0;
 
   function clearFilters() {
     setFilters(initialFilters);
@@ -222,23 +192,23 @@ export function AnalyticsDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect
+        <MultiSelectFilter
           label="Department"
-          value={filters.department}
+          selected={filters.department}
           options={DEPARTMENTS}
-          onChange={(value) => updateFilter("department", value)}
+          onChange={(values) => updateFilter("department", values)}
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="Country"
-          value={filters.country}
+          selected={filters.country}
           options={COUNTRIES}
-          onChange={(value) => updateFilter("country", value)}
+          onChange={(values) => updateFilter("country", values)}
         />
-        <FilterSelect
+        <MultiSelectFilter
           label="Level"
-          value={filters.level}
+          selected={filters.level}
           options={LEVELS}
-          onChange={(value) => updateFilter("level", value)}
+          onChange={(values) => updateFilter("level", values)}
         />
         <Button variant="ghost" size="sm" onClick={clearFilters} disabled={!hasActiveFilters}>
           Clear filters

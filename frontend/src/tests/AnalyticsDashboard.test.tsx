@@ -68,17 +68,13 @@ describe("AnalyticsDashboard", () => {
     expect(screen.queryByText("Total global payroll")).not.toBeInTheDocument();
   });
 
-  it("fetches with all filters undefined on initial load", async () => {
+  it("fetches with all filters empty on initial load", async () => {
     mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
 
     render(<AnalyticsDashboard />);
     await screen.findByText("Total global payroll");
 
-    expect(mockedGetAnalyticsSummary).toHaveBeenCalledWith({
-      department: undefined,
-      country: undefined,
-      level: undefined,
-    });
+    expect(mockedGetAnalyticsSummary).toHaveBeenCalledWith({ department: [], country: [], level: [] });
   });
 
   it("re-fetches with the selected department when that filter changes", async () => {
@@ -88,16 +84,47 @@ describe("AnalyticsDashboard", () => {
     mockedGetAnalyticsSummary.mockClear();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("combobox", { name: "Department" }));
-    await user.click(await screen.findByRole("option", { name: "Engineering" }));
+    await user.click(screen.getByRole("button", { name: "Department" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Engineering" }));
 
     await waitFor(() =>
       expect(mockedGetAnalyticsSummary).toHaveBeenCalledWith({
-        department: "Engineering",
-        country: undefined,
-        level: undefined,
+        department: ["Engineering"],
+        country: [],
+        level: [],
       }),
     );
+  });
+
+  it("supports selecting multiple values in one filter, for side-by-side comparison", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+    mockedGetAnalyticsSummary.mockClear();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Department" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Engineering" }));
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: ["Engineering"],
+        country: [],
+        level: [],
+      }),
+    );
+
+    // The menu stays open across selections (comparison is the point).
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Sales" }));
+    await waitFor(() =>
+      expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
+        department: ["Engineering", "Sales"],
+        country: [],
+        level: [],
+      }),
+    );
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Department" })).toHaveTextContent("Department (2)");
   });
 
   it("combines country and level filters into a single query once both change", async () => {
@@ -106,28 +133,29 @@ describe("AnalyticsDashboard", () => {
     await screen.findByText("Total global payroll");
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("combobox", { name: "Country" }));
-    await user.click(await screen.findByRole("option", { name: "US" }));
+    await user.click(screen.getByRole("button", { name: "Country" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "US" }));
     await waitFor(() =>
       expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
-        department: undefined,
-        country: "US",
-        level: undefined,
+        department: [],
+        country: ["US"],
+        level: [],
       }),
     );
+    await user.keyboard("{Escape}");
 
-    await user.click(screen.getByRole("combobox", { name: "Level" }));
-    await user.click(await screen.findByRole("option", { name: "L2" }));
+    await user.click(screen.getByRole("button", { name: "Level" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "L2" }));
     await waitFor(() =>
       expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
-        department: undefined,
-        country: "US",
-        level: "L2",
+        department: [],
+        country: ["US"],
+        level: ["L2"],
       }),
     );
   });
 
-  it("clears active filters and re-fetches with everything undefined", async () => {
+  it("clears active filters and re-fetches with everything empty", async () => {
     mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
     render(<AnalyticsDashboard />);
     await screen.findByText("Total global payroll");
@@ -135,27 +163,28 @@ describe("AnalyticsDashboard", () => {
     expect(screen.getByRole("button", { name: "Clear filters" })).toBeDisabled();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("combobox", { name: "Department" }));
-    await user.click(await screen.findByRole("option", { name: "Engineering" }));
+    await user.click(screen.getByRole("button", { name: "Department" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Engineering" }));
     await waitFor(() =>
       expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
-        department: "Engineering",
-        country: undefined,
-        level: undefined,
+        department: ["Engineering"],
+        country: [],
+        level: [],
       }),
     );
+    await user.keyboard("{Escape}");
 
     expect(screen.getByRole("button", { name: "Clear filters" })).not.toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
 
-    expect(screen.getByRole("combobox", { name: "Department" })).toHaveTextContent(/all department/i);
+    expect(screen.getByRole("button", { name: "Department" })).toHaveTextContent(/all department/i);
     expect(screen.getByRole("button", { name: "Clear filters" })).toBeDisabled();
     await waitFor(() =>
       expect(mockedGetAnalyticsSummary).toHaveBeenLastCalledWith({
-        department: undefined,
-        country: undefined,
-        level: undefined,
+        department: [],
+        country: [],
+        level: [],
       }),
     );
   });
