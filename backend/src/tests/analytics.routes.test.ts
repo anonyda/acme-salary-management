@@ -48,6 +48,7 @@ describe("GET /api/analytics/summary", () => {
     insertEmployee(db, { fullName: "Carol Diaz", department: "Sales", country: "US", level: "L3", status: "active", amount: 80000, currency: "USD" });
     insertEmployee(db, { fullName: "Bob Smith", department: "Engineering", country: "UK", level: "L2", status: "active", amount: 40000, currency: "GBP" });
     insertEmployee(db, { fullName: "Eve Ocean", department: "Engineering", country: "US", level: "L2", status: "inactive", amount: 60000, currency: "USD" });
+    insertEmployee(db, { fullName: "Frank Ito", department: "Marketing", country: "DE", level: "L2", status: "active", amount: 70000, currency: "USD" });
     app = createApp(db);
   });
 
@@ -60,16 +61,18 @@ describe("GET /api/analytics/summary", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.kpis).toEqual({
-      totalPayrollUSD: 260000,
-      activeHeadcount: 3,
-      avgSalaryUSD: 86666.67,
+      totalPayrollUSD: 330000,
+      activeHeadcount: 4,
+      avgSalaryUSD: 82500,
       medianSalaryUSD: 80000,
     });
     expect(res.body.byDepartment).toEqual([
       { department: "Engineering", headcount: 2, avgSalaryUSD: 90000, medianSalaryUSD: 90000 },
+      { department: "Marketing", headcount: 1, avgSalaryUSD: 70000, medianSalaryUSD: 70000 },
       { department: "Sales", headcount: 1, avgSalaryUSD: 80000, medianSalaryUSD: 80000 },
     ]);
     expect(res.body.byCountry).toEqual([
+      { country: "DE", avgSalaryUSD: 70000, medianSalaryUSD: 70000, totalPayrollUSD: 70000 },
       { country: "UK", avgSalaryUSD: 80000, medianSalaryUSD: 80000, totalPayrollUSD: 80000 },
       { country: "US", avgSalaryUSD: 90000, medianSalaryUSD: 90000, totalPayrollUSD: 180000 },
     ]);
@@ -124,12 +127,29 @@ describe("GET /api/analytics/summary", () => {
   });
 
   it("returns zeroed KPIs and empty breakdowns when a filter matches no one", async () => {
-    const res = await request(app).get("/api/analytics/summary").query({ department: "Marketing" });
+    const res = await request(app).get("/api/analytics/summary").query({ department: "HR" });
 
     expect(res.status).toBe(200);
     expect(res.body.kpis).toEqual({ totalPayrollUSD: 0, activeHeadcount: 0, avgSalaryUSD: 0, medianSalaryUSD: 0 });
     expect(res.body.byDepartment).toEqual([]);
     expect(res.body.byCountry).toEqual([]);
     expect(res.body.distributionByCountry).toEqual([]);
+  });
+
+  it("accepts a repeated department param as a multi-value filter for comparison", async () => {
+    const res = await request(app).get("/api/analytics/summary?department=Engineering&department=Sales");
+
+    expect(res.status).toBe(200);
+    // Excludes Frank (Marketing) — Alice, Bob, Carol remain.
+    expect(res.body.kpis).toEqual({
+      totalPayrollUSD: 260000,
+      activeHeadcount: 3,
+      avgSalaryUSD: 86666.67,
+      medianSalaryUSD: 80000,
+    });
+    expect(res.body.byDepartment).toEqual([
+      { department: "Engineering", headcount: 2, avgSalaryUSD: 90000, medianSalaryUSD: 90000 },
+      { department: "Sales", headcount: 1, avgSalaryUSD: 80000, medianSalaryUSD: 80000 },
+    ]);
   });
 });

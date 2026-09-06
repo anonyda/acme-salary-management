@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 
 export interface AnalyticsFilters {
-  department?: string;
-  country?: string;
-  level?: string;
+  department?: string | string[];
+  country?: string | string[];
+  level?: string | string[];
 }
 
 export interface Kpis {
@@ -91,25 +91,53 @@ function average(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+// Normalizes a scalar-or-array filter value to an array, dropping an unset
+// or empty filter to `null` (meaning "no filter" — matches everything).
+function normalizeFilter(value: string | string[] | undefined): string[] | null {
+  if (value === undefined) return null;
+  const values = Array.isArray(value) ? value : [value];
+  return values.length === 0 ? null : values;
+}
+
+// Builds an `IN (@p0, @p1, ...)` clause for a normalized filter, or "1=1"
+// (always true) when there's no filter to apply — so a multi-value filter
+// (comparing several departments/countries side by side) is just the
+// single-value case with more than one placeholder.
+function buildInClause(
+  column: string,
+  values: string[] | null,
+  paramPrefix: string,
+): { clause: string; params: Record<string, string> } {
+  if (values === null) return { clause: "1=1", params: {} };
+
+  const params: Record<string, string> = {};
+  const placeholders = values.map((v, i) => {
+    const key = `${paramPrefix}${i}`;
+    params[key] = v;
+    return `@${key}`;
+  });
+  return { clause: `${column} IN (${placeholders.join(", ")})`, params };
+}
+
 // KPIs, breakdowns, and distributions are all derived from the same
 // filtered, active-only, USD-normalized set of current salaries, so every
 // figure in the response is consistent with every other.
 export function getSummary(db: Database.Database, filters: AnalyticsFilters = {}): AnalyticsSummary {
+  const department = buildInClause("e.department", normalizeFilter(filters.department), "department");
+  const country = buildInClause("e.country", normalizeFilter(filters.country), "country");
+  const level = buildInClause("e.level", normalizeFilter(filters.level), "level");
+
   const rows = db
     .prepare(
       `SELECT e.department AS department, e.country AS country, s.amount AS amount, s.currency AS currency
        FROM employees e
        JOIN salaries s ON s.employee_id = e.id AND s.is_current = 1
        WHERE e.status = 'active'
-         AND (@department IS NULL OR e.department = @department)
-         AND (@country IS NULL OR e.country = @country)
-         AND (@level IS NULL OR e.level = @level)`,
+         AND ${department.clause}
+         AND ${country.clause}
+         AND ${level.clause}`,
     )
-    .all({
-      department: filters.department ?? null,
-      country: filters.country ?? null,
-      level: filters.level ?? null,
-    }) as EmployeeSalaryRow[];
+    .all({ ...department.params, ...country.params, ...level.params }) as EmployeeSalaryRow[];
 
   const rateRows = db.prepare("SELECT currency, rate_to_usd AS rateToUsd FROM exchange_rates").all() as {
     currency: string;

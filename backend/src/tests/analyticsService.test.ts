@@ -193,6 +193,50 @@ describe("getSummary", () => {
     });
   });
 
+  it("accepts an array of values for a filter, scoping every figure to their union", () => {
+    const summary = getSummary(db, { country: ["US", "UK"] });
+
+    // Alice (US), Bob (UK), Eve (US) — Carol (DE) and Dave (IN) excluded.
+    expect(summary.kpis).toEqual({
+      totalPayrollUSD: 300000,
+      activeHeadcount: 3,
+      avgSalaryUSD: 100000,
+      medianSalaryUSD: 90000,
+    });
+    expect(summary.byCountry).toEqual([
+      { country: "UK", avgSalaryUSD: 90000, medianSalaryUSD: 90000, totalPayrollUSD: 90000 },
+      { country: "US", avgSalaryUSD: 105000, medianSalaryUSD: 105000, totalPayrollUSD: 210000 },
+    ]);
+    expect(summary.byDepartment).toEqual([
+      { department: "Engineering", headcount: 3, avgSalaryUSD: 100000, medianSalaryUSD: 90000 },
+    ]);
+  });
+
+  it("treats a single-element array filter the same as the equivalent scalar filter", () => {
+    const arrayResult = getSummary(db, { department: ["Engineering"] });
+    const scalarResult = getSummary(db, { department: "Engineering" });
+
+    expect(arrayResult).toEqual(scalarResult);
+  });
+
+  it("treats an empty array filter the same as no filter", () => {
+    const summary = getSummary(db, { department: [] });
+
+    expect(summary.kpis.activeHeadcount).toBe(5);
+  });
+
+  it("combines a multi-value filter with a scalar filter using AND semantics", () => {
+    const summary = getSummary(db, { country: ["US", "UK"], level: "L2" });
+
+    // Excludes Eve (L3) from the US/UK set — leaves Alice and Bob.
+    expect(summary.kpis).toEqual({
+      totalPayrollUSD: 180000,
+      activeHeadcount: 2,
+      avgSalaryUSD: 90000,
+      medianSalaryUSD: 90000,
+    });
+  });
+
   it("returns zeroed KPIs and empty breakdowns when filters match no one", () => {
     const summary = getSummary(db, { department: "Marketing" });
 
