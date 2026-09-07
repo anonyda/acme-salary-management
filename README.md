@@ -6,6 +6,11 @@ dashboard (KPIs, department/country breakdowns, salary distribution), all normal
 
 Full spec: [`docs/TRD.md`](docs/TRD.md) · One-page scope: [`docs/requirements.md`](docs/requirements.md)
 
+## Live demo
+
+- **App:** https://acme-salary-management-anonydas-projects.vercel.app/
+- **Walkthrough video:** https://www.loom.com/share/5c1f14c2a316499f869faf4bfaae3c42
+
 ## Tech stack
 
 | Layer    | Stack |
