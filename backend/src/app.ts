@@ -1,11 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
 import type Database from "better-sqlite3";
+import cors from "cors";
 import express from "express";
 import { createAnalyticsRouter } from "./routes/analytics.routes.js";
 import { createEmployeesRouter } from "./routes/employees.routes.js";
 
 export function createApp(db: Database.Database) {
   const app = express();
+  // The Vite dev proxy makes frontend/backend same-origin locally, so this
+  // is invisible in dev — but frontend and backend are separate deployments
+  // (Vercel + Railway), so the browser will block every request without it.
+  // CORS_ORIGIN restricts to a specific deployed frontend URL; unset (the
+  // default) reflects any request origin — fine here since there's no
+  // cookie/session auth (out of scope, see CLAUDE.md) for CORS to protect.
+  app.use(cors({ origin: process.env.CORS_ORIGIN ?? true }));
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
