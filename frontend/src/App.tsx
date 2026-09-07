@@ -160,7 +160,7 @@ export default function App() {
             </Field>
             <Field label="Detail">
               <span className="truncate font-mono text-sm text-muted-foreground">
-                {health.state === "error" ? health.message : "OK"}
+                {health.state === "checking" ? "…" : health.state === "error" ? health.message : "OK"}
               </span>
             </Field>
           </CardContent>

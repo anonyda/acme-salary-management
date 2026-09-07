@@ -62,6 +62,23 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("Offline").length).toBeGreaterThan(0));
   });
 
+  it("doesn't show the stale 'OK' detail while a recheck is still in flight", async () => {
+    mockFetchWithHealth({ ok: false, status: 500, statusText: "Internal Server Error", body: { error: "boom" } });
+    render(<App />);
+    await waitFor(() => expect(screen.getAllByText("Offline").length).toBeGreaterThan(0));
+    expect(screen.getByText("boom")).toBeInTheDocument();
+
+    // Recheck now hangs forever — long enough to assert the in-flight state
+    // without racing a real resolution.
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+
+    await userEvent.click(screen.getByRole("button", { name: "Recheck" }));
+
+    await waitFor(() => expect(screen.getAllByText("Checking").length).toBeGreaterThan(0));
+    expect(screen.queryByText("OK")).not.toBeInTheDocument();
+    expect(screen.queryByText("boom")).not.toBeInTheDocument();
+  });
+
   it("doesn't fetch the analytics summary until the Analytics tab is opened", async () => {
     mockFetchWithHealth({ ok: true, body: { status: "ok" } });
 
