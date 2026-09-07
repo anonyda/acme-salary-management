@@ -111,6 +111,9 @@ describe("AddEmployeeDialog", () => {
     expect(mockedCreateEmployee).not.toHaveBeenCalled();
   });
 
+  // Five sequential dropdown interactions via user-event push this past the
+  // 5000ms default on a slower machine — not a hang, just a genuinely
+  // longer interaction sequence now that Gender is part of the form.
   it("submits with the entered values once all required fields are filled", async () => {
     mockedCreateEmployee.mockResolvedValue(createdEmployee);
     const { user, onCreated } = await openDialog();
@@ -149,5 +152,5 @@ describe("AddEmployeeDialog", () => {
       }),
     );
     expect(onCreated).toHaveBeenCalledWith(createdEmployee);
-  });
+  }, 10000);
 });
