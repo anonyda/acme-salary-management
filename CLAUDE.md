@@ -29,7 +29,10 @@ One-page scope doc: `docs/requirements.md`
 /frontend
   /src
     /components
+      /ui         → shadcn/ui primitives
     /api          → API client
+    /hooks        → shared React hooks
+    /lib          → validation, formatting, misc utilities
     /tests
 /docs
   TRD.md

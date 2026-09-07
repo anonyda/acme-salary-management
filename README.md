@@ -104,7 +104,10 @@ Both suites are fully deterministic and don't require a live server or network a
 /frontend
   /src
     /components
+      /ui      → shadcn/ui primitives
     /api       → typed API client
+    /hooks     → shared React hooks
+    /lib       → validation, formatting, misc utilities
     /tests
 /docs
   TRD.md

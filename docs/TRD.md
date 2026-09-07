@@ -152,9 +152,9 @@ Response envelope for list endpoints includes `{ data, page, limit, total }` to 
 - [ ] This TRD + one-page requirements doc
 - [ ] Architecture diagram (above, plus a rendered version)
 - [ ] Git repo with incremental, meaningful commit history
-- [ ] `AI_USAGE.md` — log of key prompts/decisions made with AI assistance
-- [ ] Seed script (10,000 employees)
+- [x] `AI_USAGE.md` — log of key prompts/decisions made with AI assistance
+- [x] Seed script (10,000 employees)
 - [ ] Deployed, working frontend (Vercel) + backend (Railway)
-- [ ] Test suite (backend + frontend)
+- [x] Test suite (backend + frontend)
 - [ ] Demo video (3–5 min)
-- [ ] README with setup/run instructions
+- [x] README with setup/run instructions
