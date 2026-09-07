@@ -1,65 +1,24 @@
-import { Activity } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { ApiError, checkHealth } from "@/api/client";
+import { useEffect, useState } from "react";
+import { checkHealth } from "@/api/client";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { EmployeeTable } from "@/components/EmployeeTable";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ConnectionState = "checking" | "connected" | "error";
 
-interface HealthCheckResult {
-  state: ConnectionState;
-  latencyMs: number | null;
-  message: string | null;
-  checkedAt: Date | null;
-}
+// A lighter version of the old health-check hook — just the state a status
+// pill needs (no latency/message/recheck), now that the detailed connection
+// card that used those is gone.
+function useHealthCheck(): ConnectionState {
+  const [state, setState] = useState<ConnectionState>("checking");
 
-function useHealthCheck() {
-  const [result, setResult] = useState<HealthCheckResult>({
-    state: "checking",
-    latencyMs: null,
-    message: null,
-    checkedAt: null,
-  });
-
-  const performCheck = useCallback(() => {
-    const start = performance.now();
-
+  useEffect(() => {
     checkHealth()
-      .then(() => {
-        setResult({
-          state: "connected",
-          latencyMs: Math.round(performance.now() - start),
-          message: null,
-          checkedAt: new Date(),
-        });
-      })
-      .catch((err: unknown) => {
-        setResult({
-          state: "error",
-          latencyMs: null,
-          message: err instanceof ApiError ? err.message : "Could not reach the backend",
-          checkedAt: new Date(),
-        });
-      });
+      .then(() => setState("connected"))
+      .catch(() => setState("error"));
   }, []);
 
-  // Runs once on mount — initial state is already "checking", so the
-  // effect only needs to kick off the fetch, not reset state itself.
-  useEffect(() => {
-    performCheck();
-  }, [performCheck]);
-
-  // User-triggered recheck: safe to reset state synchronously here since
-  // this runs from an event handler, not inside the effect above.
-  const recheck = useCallback(() => {
-    setResult((prev) => ({ ...prev, state: "checking" }));
-    performCheck();
-  }, [performCheck]);
-
-  return { ...result, recheck };
+  return state;
 }
 
 const STATE_COLOR: Record<ConnectionState, string> = {
@@ -94,15 +53,6 @@ function StatusPill({ state }: { state: ConnectionState }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-      {children}
-    </div>
-  );
-}
-
 type TabValue = "employees" | "analytics";
 const DEFAULT_TAB: TabValue = "employees";
 
@@ -120,57 +70,33 @@ export default function App() {
 
   return (
     <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-baseline gap-3">
-            <span className="text-lg font-semibold tracking-tight">Acme</span>
-            <span className="hidden text-xs tracking-wide text-muted-foreground sm:inline">Salary Management</span>
-          </div>
-          <StatusPill state={health.state} />
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-
-        <Card className="mt-4 gap-0 overflow-hidden py-0">
-          <CardHeader className="flex-row items-center justify-between border-b border-border py-4">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <Activity className="size-4 text-muted-foreground" />
-                Backend connection
-              </CardTitle>
-              <CardDescription className="mt-1 font-mono text-xs">GET /health</CardDescription>
+      {/* Tabs wraps both header (TabsList) and main (TabsContent) — Radix
+          only requires them to share a Tabs.Root ancestor, not be direct
+          siblings, so the trigger list can live in the header while the
+          panels live in the page body below it. Forced back to `block`
+          (overriding the component's default `flex flex-col`): as a flex
+          item, <main>'s `mx-auto` would switch it from block's "always
+          fill the container width" sizing to shrink-to-fit — capped by
+          max-w-7xl, but no longer forced up to it — so Employees' wide
+          table and Analytics' narrower cards would render at different
+          widths instead of both consistently filling max-w-7xl. */}
+      <Tabs defaultValue={DEFAULT_TAB} className="block" onValueChange={handleTabChange}>
+        <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-4">
+            <div className="flex items-baseline gap-3">
+              <span className="text-lg font-semibold tracking-tight">Acme</span>
+              <span className="hidden text-xs tracking-wide text-muted-foreground sm:inline">Salary Management</span>
             </div>
-            <Button size="sm" variant="outline" onClick={health.recheck} disabled={health.state === "checking"}>
-              Recheck
-            </Button>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-6 py-5 sm:grid-cols-4">
-            <Field label="Status">
-              <StatusPill state={health.state} />
-            </Field>
-            <Field label="Latency">
-              <span className="font-mono text-sm">{health.latencyMs !== null ? `${health.latencyMs} ms` : "—"}</span>
-            </Field>
-            <Field label="Checked">
-              <span className="font-mono text-sm">
-                {health.checkedAt ? health.checkedAt.toLocaleTimeString() : "—"}
-              </span>
-            </Field>
-            <Field label="Detail">
-              <span className="truncate font-mono text-sm text-muted-foreground">
-                {health.state === "checking" ? "…" : health.state === "error" ? health.message : "OK"}
-              </span>
-            </Field>
-          </CardContent>
-        </Card>
+            <TabsList>
+              <TabsTrigger value="employees">Employees</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+            <StatusPill state={health} />
+          </div>
+        </header>
 
-        <Tabs defaultValue={DEFAULT_TAB} className="mt-8" onValueChange={handleTabChange}>
-          <TabsList>
-            <TabsTrigger value="employees">Employees</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
 
           {/* forceMount + hidden-when-inactive (instead of the default
               unmount), once a tab has been visited, keeps EmployeeTable's
@@ -198,8 +124,8 @@ export default function App() {
             </p>
             {visitedTabs.has("analytics") && <AnalyticsDashboard />}
           </TabsContent>
-        </Tabs>
-      </main>
+        </main>
+      </Tabs>
     </div>
   );
 }

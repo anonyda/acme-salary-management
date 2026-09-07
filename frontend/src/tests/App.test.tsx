@@ -12,8 +12,8 @@ const emptyAnalyticsSummary = {
 
 // EmployeeTable (the default active tab) also fetches on mount, so the
 // health-check mock needs to respond per-path rather than one fixed body.
-// The analytics-summary branch is here too in case a future test switches
-// tabs — AnalyticsDashboard now mounts (and fetches) lazily on first visit.
+// The analytics-summary branch is here too in case a test switches tabs —
+// AnalyticsDashboard mounts (and fetches) lazily on first visit.
 function mockFetchWithHealth(health: { ok: boolean; status?: number; statusText?: string; body: unknown }) {
   vi.stubGlobal(
     "fetch",
@@ -62,28 +62,29 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("Offline").length).toBeGreaterThan(0));
   });
 
-  it("doesn't show the stale 'OK' detail while a recheck is still in flight", async () => {
-    mockFetchWithHealth({ ok: false, status: 500, statusText: "Internal Server Error", body: { error: "boom" } });
+  it("shows the Employees tab's content by default, on page load", async () => {
+    mockFetchWithHealth({ ok: true, body: { status: "ok" } });
+
     render(<App />);
-    await waitFor(() => expect(screen.getAllByText("Offline").length).toBeGreaterThan(0));
-    expect(screen.getByText("boom")).toBeInTheDocument();
 
-    // Recheck now hangs forever — long enough to assert the in-flight state
-    // without racing a real resolution.
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    expect(await screen.findByText("No employees found.")).toBeInTheDocument();
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: "Recheck" }));
+  it("puts the Employees/Analytics tab switcher and the status pill in the header", async () => {
+    mockFetchWithHealth({ ok: true, body: { status: "ok" } });
+    render(<App />);
+    await screen.findByText("No employees found.");
 
-    await waitFor(() => expect(screen.getAllByText("Checking").length).toBeGreaterThan(0));
-    expect(screen.queryByText("OK")).not.toBeInTheDocument();
-    expect(screen.queryByText("boom")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Employees" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Analytics" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("Connected").length).toBeGreaterThan(0));
   });
 
   it("doesn't fetch the analytics summary until the Analytics tab is opened", async () => {
     mockFetchWithHealth({ ok: true, body: { status: "ok" } });
 
     render(<App />);
-    await waitFor(() => expect(screen.getAllByText("Connected").length).toBeGreaterThan(0));
+    await screen.findByText("No employees found.");
 
     expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining("/api/analytics/summary"), expect.anything());
 
