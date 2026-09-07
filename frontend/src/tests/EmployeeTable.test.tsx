@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type Employee, listEmployees, type ListEmployeesResponse } from "@/api/client";
+import { ApiError, type Employee, listEmployees, type ListEmployeesResponse } from "@/api/client";
 import { EmployeeTable } from "@/components/EmployeeTable";
 
 vi.mock("@/api/client", async (importOriginal) => {
@@ -141,5 +141,34 @@ describe("EmployeeTable", () => {
         level: undefined,
       }),
     );
+  });
+
+  it("shows a retry button on a failed first load, and recovers on retry", async () => {
+    mockedListEmployees.mockRejectedValueOnce(new ApiError(500, "server exploded"));
+    render(<EmployeeTable />);
+
+    expect(await screen.findByText("server exploded")).toBeInTheDocument();
+    const retryButton = screen.getByRole("button", { name: "Retry" });
+
+    mockedListEmployees.mockResolvedValueOnce(makeResponse());
+    await userEvent.click(retryButton);
+
+    expect(await screen.findByText("Alice Johnson")).toBeInTheDocument();
+    expect(screen.queryByText("server exploded")).not.toBeInTheDocument();
+  });
+
+  it("keeps showing stale rows (dimmed) when a reload fails, instead of blanking the table", async () => {
+    render(<EmployeeTable />);
+    expect(await screen.findByText("Alice Johnson")).toBeInTheDocument();
+
+    mockedListEmployees.mockRejectedValueOnce(new ApiError(500, "server exploded"));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(await screen.findByRole("option", { name: "Engineering" }));
+
+    expect(await screen.findByText("server exploded")).toBeInTheDocument();
+    // The previously-loaded row is still visible, not replaced by a blank
+    // error state — only a dimmed table plus the error banner above it.
+    expect(screen.getByText("Alice Johnson")).toBeInTheDocument();
   });
 });

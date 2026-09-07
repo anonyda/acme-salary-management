@@ -137,6 +137,11 @@ export function EmployeeTable() {
     setStatus("loading");
   }
 
+  function retry() {
+    setStatus("loading");
+    setRefreshKey((key) => key + 1);
+  }
+
   const hasActiveFilters =
     searchInput !== "" || query.department !== ALL || query.country !== ALL || query.level !== ALL;
 
@@ -195,7 +200,22 @@ export function EmployeeTable() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border">
+      {status === "error" && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <span>{errorMessage}</span>
+          <Button variant="outline" size="sm" onClick={retry}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      <div
+        className={
+          status === "loading" && employees.length > 0
+            ? "overflow-hidden rounded-lg border border-border opacity-60 transition-opacity"
+            : "overflow-hidden rounded-lg border border-border"
+        }
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -212,17 +232,23 @@ export function EmployeeTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {status === "loading" && (
+            {/* Loading/error with no rows yet (first load, or a reload that
+                has nothing stale to fall back on) replaces the table body
+                with a single placeholder row. Once there's data, a loading
+                or error reload keeps showing it (dimmed above, plus the
+                banner for errors) instead of blanking the table out from
+                under the user on every filter/page change. */}
+            {status === "loading" && employees.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                   Loading employees…
                 </TableCell>
               </TableRow>
             )}
-            {status === "error" && (
+            {status === "error" && employees.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-destructive">
-                  {errorMessage}
+                <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  Couldn't load employees.
                 </TableCell>
               </TableRow>
             )}
@@ -233,7 +259,7 @@ export function EmployeeTable() {
                 </TableCell>
               </TableRow>
             )}
-            {status === "idle" &&
+            {employees.length > 0 &&
               employees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">
