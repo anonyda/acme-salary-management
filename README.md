@@ -17,16 +17,22 @@ Full spec: [`docs/TRD.md`](docs/TRD.md) · One-page scope: [`docs/requirements.m
 
 ## Prerequisites
 
-- **Node.js 20+** (developed/tested on Node 24)
+- **Node.js 22+** (developed/tested on Node 24)
 - npm (ships with Node)
 
-> **Node version note:** `better-sqlite3` ships a prebuilt native binary per Node version — if
-> none exists for your Node version yet, `npm install` falls back to compiling from source via
-> `node-gyp`, which requires a working Python 3.x + native build toolchain (a common source of
-> install failures, especially on Windows with a broken/Store-alias `python`). The version pinned
-> in `backend/package.json` (`^13.0.3`) has a prebuilt binary for Node 24 — if you're on an older
-> `better-sqlite3` (pre-v13) and hit a compile error on install, bump it rather than downgrading
-> Node.
+> **Node version note:** the `better-sqlite3` version pinned in `backend/package.json`
+> (`^13.0.3`) declares `engines.node: >=22` — **Node 20 is not just unsupported, it actively
+> crashes.** `npm install` succeeds with only an `EBADENGINE` warning (npm doesn't block on it by
+> default), but requiring the module and opening a database segfaults at runtime (reproduced:
+> exit code `-1073741819` / `0xC0000005`, an access violation) rather than throwing a catchable
+> JS error. Use Node 22 or 24, not 20.
+>
+> Separately: `better-sqlite3` ships a prebuilt native binary per supported Node version — if none
+> exists for your Node version, `npm install` falls back to compiling from source via `node-gyp`,
+> which requires a working Python 3.x + native build toolchain (a common source of install
+> failures, especially on Windows with a broken/Store-alias `python`). If you're on an older
+> `better-sqlite3` (pre-v13) and hit a compile error on install, bump the version rather than
+> downgrading Node.
 
 ## Setup
 
