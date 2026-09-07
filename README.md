@@ -78,6 +78,12 @@ npm run dev    # starts Vite on http://localhost:5173
 The Vite dev server proxies `/api` and `/health` to `http://localhost:3001` (see
 `frontend/vite.config.ts`), so the backend must be running first. Open http://localhost:5173.
 
+**Deploying the frontend separately from the backend** (e.g. Vercel + Railway): there's no dev
+proxy in a deployed build, so set `VITE_API_BASE_URL` to the backend's origin (e.g.
+`https://your-backend.up.railway.app`, no trailing slash) in the frontend's **build-time**
+environment — Vite inlines `VITE_*` vars into the static bundle at build, they aren't read at
+runtime. Locally/undeployed, leave it unset to keep using the dev proxy.
+
 ## Running tests
 
 ```bash

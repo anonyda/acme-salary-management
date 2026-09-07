@@ -1,6 +1,11 @@
 // Typed client for the backend defined in docs/TRD.md section 7.
-// Requests use relative paths and rely on the Vite dev proxy (vite.config.ts)
-// to forward /api and /health to the backend during development.
+// In dev, requests use bare relative paths and rely on the Vite dev proxy
+// (vite.config.ts) to forward /api and /health to the backend. In a
+// deployed build, frontend and backend are separate deployments (Vercel +
+// Railway) with no such proxy, so VITE_API_BASE_URL (set at build time —
+// Vite inlines VITE_* vars into the static bundle, so this must be
+// configured in the frontend's build environment, not read at runtime)
+// prefixes every request with the backend's actual origin instead.
 
 export type Department = "Engineering" | "Sales" | "Marketing" | "HR" | "Finance" | "Operations";
 export type Level = "L1" | "L2" | "L3" | "L4" | "L5";
@@ -148,7 +153,8 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+  const res = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
