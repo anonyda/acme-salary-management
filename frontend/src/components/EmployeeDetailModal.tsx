@@ -1,20 +1,35 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import {
   ApiError,
+  COUNTRIES,
+  type Country,
   type Currency,
+  DEPARTMENTS,
+  type Department,
   type EmployeeWithSalary,
+  type Gender,
   getEmployee,
+  LEVELS,
+  type Level,
   SUPPORTED_CURRENCIES,
+  SUPPORTED_GENDERS,
+  updateEmployee,
   updateSalary,
 } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EnumSelect, Field } from "@/components/EmployeeFormFields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/currency";
 import { validateSalaryForm } from "@/lib/salaryValidation";
+import {
+  employeeToUpdateForm,
+  type UpdateEmployeeFormValues,
+  validateUpdateEmployeeForm,
+} from "@/lib/updateEmployeeValidation";
 
 function DetailField({ label, value, children }: { label: string; value?: string; children?: ReactNode }) {
   return (
@@ -31,12 +46,24 @@ interface EmployeeDetailModalProps {
   employeeId: number | null;
   mode: EmployeeDetailMode;
   onClose: () => void;
-  onSalaryUpdated: (employee: EmployeeWithSalary) => void;
+  onEmployeeUpdated: (employee: EmployeeWithSalary) => void;
 }
+
+const EMPTY_PROFILE_FORM: UpdateEmployeeFormValues = {
+  fullName: "",
+  email: "",
+  gender: "",
+  title: "",
+  department: "",
+  country: "",
+  level: "",
+  hireDate: "",
+  managerId: "",
+};
 
 type LoadState = "loading" | "idle" | "error";
 
-export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated }: EmployeeDetailModalProps) {
+export function EmployeeDetailModal({ employeeId, mode, onClose, onEmployeeUpdated }: EmployeeDetailModalProps) {
   const [employee, setEmployee] = useState<EmployeeWithSalary | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -53,6 +80,13 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [profileValues, setProfileValues] = useState<UpdateEmployeeFormValues>(EMPTY_PROFILE_FORM);
+  const [savedProfileValues, setSavedProfileValues] = useState<UpdateEmployeeFormValues>(EMPTY_PROFILE_FORM);
+  const [profileErrors, setProfileErrors] = useState<ReturnType<typeof validateUpdateEmployeeForm>>({});
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileSubmitError, setProfileSubmitError] = useState<string | null>(null);
+  const [profileSuccessMessage, setProfileSuccessMessage] = useState<string | null>(null);
+
   // Resets per-open state as a render-phase adjustment (not inside the
   // fetch effect below) — see EmployeeTable's debounce bridge for the same
   // pattern. Keeps the effect's only setState calls in its async .then/
@@ -65,6 +99,9 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
     setFormError(null);
     setSubmitError(null);
     setSuccessMessage(null);
+    setProfileErrors({});
+    setProfileSubmitError(null);
+    setProfileSuccessMessage(null);
   }
 
   useEffect(() => {
@@ -82,6 +119,9 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
         setCurrency(loadedCurrency);
         setSavedAmount(loadedAmount);
         setSavedCurrency(loadedCurrency);
+        const loadedProfile = employeeToUpdateForm(res);
+        setProfileValues(loadedProfile);
+        setSavedProfileValues(loadedProfile);
         setLoadState("idle");
       })
       .catch((err: unknown) => {
@@ -101,6 +141,45 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
     setEmployee(null);
   }
 
+  function updateProfileField<K extends keyof UpdateEmployeeFormValues>(key: K, value: UpdateEmployeeFormValues[K]) {
+    setProfileValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleProfileSubmit(e: FormEvent) {
+    e.preventDefault();
+
+    const validationErrors = validateUpdateEmployeeForm(profileValues);
+    setProfileErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0 || employeeId === null) return;
+
+    setProfileSubmitting(true);
+    setProfileSubmitError(null);
+    setProfileSuccessMessage(null);
+    try {
+      const updated = await updateEmployee(employeeId, {
+        full_name: profileValues.fullName.trim(),
+        email: profileValues.email.trim(),
+        gender: profileValues.gender as Gender,
+        title: profileValues.title.trim(),
+        department: profileValues.department as Department,
+        level: profileValues.level as Level,
+        country: profileValues.country as Country,
+        hire_date: profileValues.hireDate,
+        manager_id: profileValues.managerId.trim() === "" ? null : Number(profileValues.managerId.trim()),
+      });
+      setEmployee(updated);
+      const savedForm = employeeToUpdateForm(updated);
+      setProfileValues(savedForm);
+      setSavedProfileValues(savedForm);
+      setProfileSuccessMessage("Profile updated.");
+      onEmployeeUpdated(updated);
+    } catch (err) {
+      setProfileSubmitError(err instanceof ApiError ? err.message : "Failed to update profile.");
+    } finally {
+      setProfileSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
@@ -117,7 +196,7 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
       setSavedAmount(updated.salary ? String(updated.salary.amount) : "");
       setSavedCurrency(updated.salary?.currency ?? currency);
       setSuccessMessage("Salary updated.");
-      onSalaryUpdated(updated);
+      onEmployeeUpdated(updated);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Failed to update salary.");
     } finally {
@@ -126,6 +205,7 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
   }
 
   const isUnchanged = amountInput === savedAmount && currency === savedCurrency;
+  const isProfileUnchanged = JSON.stringify(profileValues) === JSON.stringify(savedProfileValues);
 
   return (
     <Dialog open={employeeId !== null} onOpenChange={handleOpenChange}>
@@ -141,27 +221,131 @@ export function EmployeeDetailModal({ employeeId, mode, onClose, onSalaryUpdated
               </DialogDescription>
             </DialogHeader>
 
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-              <DetailField label="Email" value={employee.email} />
-              <DetailField label="Gender" value={employee.gender} />
-              <DetailField label="Level" value={employee.level} />
-              <DetailField label="Country" value={employee.country} />
-              <DetailField label="Hire date" value={employee.hire_date} />
-              <DetailField label="Status">
-                <Badge
-                  variant="outline"
-                  className={
-                    employee.status === "active" ? "border-success/30 bg-success/10 text-success" : "text-muted-foreground"
-                  }
-                >
-                  {employee.status}
-                </Badge>
-              </DetailField>
-              <DetailField
-                label="Current salary"
-                value={employee.salary ? formatCurrency(employee.salary.amount, employee.salary.currency) : "—"}
-              />
-            </dl>
+            {mode === "view" && (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <DetailField label="Email" value={employee.email} />
+                <DetailField label="Gender" value={employee.gender} />
+                <DetailField label="Level" value={employee.level} />
+                <DetailField label="Country" value={employee.country} />
+                <DetailField label="Hire date" value={employee.hire_date} />
+                <DetailField label="Status">
+                  <Badge
+                    variant="outline"
+                    className={
+                      employee.status === "active" ? "border-success/30 bg-success/10 text-success" : "text-muted-foreground"
+                    }
+                  >
+                    {employee.status}
+                  </Badge>
+                </DetailField>
+                <DetailField
+                  label="Current salary"
+                  value={employee.salary ? formatCurrency(employee.salary.amount, employee.salary.currency) : "—"}
+                />
+              </dl>
+            )}
+
+            {mode === "edit" && (
+              <form onSubmit={handleProfileSubmit} className="flex flex-col gap-3">
+                <Field id="employee-full-name" label="Full name" error={profileErrors.fullName}>
+                  <Input
+                    id="employee-full-name"
+                    value={profileValues.fullName}
+                    onChange={(e) => updateProfileField("fullName", e.target.value)}
+                    aria-invalid={!!profileErrors.fullName}
+                  />
+                </Field>
+
+                <Field id="employee-email" label="Email" error={profileErrors.email}>
+                  <Input
+                    id="employee-email"
+                    type="email"
+                    value={profileValues.email}
+                    onChange={(e) => updateProfileField("email", e.target.value)}
+                    aria-invalid={!!profileErrors.email}
+                  />
+                </Field>
+
+                <Field id="employee-gender" label="Gender" error={profileErrors.gender}>
+                  <EnumSelect
+                    id="employee-gender"
+                    value={profileValues.gender}
+                    options={SUPPORTED_GENDERS}
+                    onChange={(v) => updateProfileField("gender", v)}
+                    invalid={!!profileErrors.gender}
+                  />
+                </Field>
+
+                <Field id="employee-title" label="Title" error={profileErrors.title}>
+                  <Input
+                    id="employee-title"
+                    value={profileValues.title}
+                    onChange={(e) => updateProfileField("title", e.target.value)}
+                    aria-invalid={!!profileErrors.title}
+                  />
+                </Field>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Field id="employee-department" label="Department" error={profileErrors.department}>
+                    <EnumSelect
+                      id="employee-department"
+                      value={profileValues.department}
+                      options={DEPARTMENTS}
+                      onChange={(v) => updateProfileField("department", v)}
+                      invalid={!!profileErrors.department}
+                    />
+                  </Field>
+                  <Field id="employee-country" label="Country" error={profileErrors.country}>
+                    <EnumSelect
+                      id="employee-country"
+                      value={profileValues.country}
+                      options={COUNTRIES}
+                      onChange={(v) => updateProfileField("country", v)}
+                      invalid={!!profileErrors.country}
+                    />
+                  </Field>
+                  <Field id="employee-level" label="Level" error={profileErrors.level}>
+                    <EnumSelect
+                      id="employee-level"
+                      value={profileValues.level}
+                      options={LEVELS}
+                      onChange={(v) => updateProfileField("level", v)}
+                      invalid={!!profileErrors.level}
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Field id="employee-hire-date" label="Hire date" error={profileErrors.hireDate}>
+                    <Input
+                      id="employee-hire-date"
+                      type="date"
+                      value={profileValues.hireDate}
+                      onChange={(e) => updateProfileField("hireDate", e.target.value)}
+                      aria-invalid={!!profileErrors.hireDate}
+                    />
+                  </Field>
+                  <Field id="employee-manager-id" label="Manager ID (optional)" error={profileErrors.managerId}>
+                    <Input
+                      id="employee-manager-id"
+                      inputMode="numeric"
+                      value={profileValues.managerId}
+                      onChange={(e) => updateProfileField("managerId", e.target.value)}
+                      aria-invalid={!!profileErrors.managerId}
+                    />
+                  </Field>
+                </div>
+
+                {profileSubmitError && <p className="text-sm text-destructive">{profileSubmitError}</p>}
+                {profileSuccessMessage && <p className="text-sm text-success">{profileSuccessMessage}</p>}
+
+                <DialogFooter>
+                  <Button type="submit" disabled={profileSubmitting || isProfileUnchanged}>
+                    {profileSubmitting ? "Saving…" : "Save profile"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            )}
 
             {mode === "edit" && (
               <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-3 border-t border-border pt-4">

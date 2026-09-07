@@ -152,8 +152,8 @@ export function EmployeeTable() {
     setStatus("loading");
   }
 
-  function handleSalaryUpdated(updated: EmployeeWithSalary) {
-    setEmployees((prev) => prev.map((e) => (e.id === updated.id ? { ...e, salary: updated.salary } : e)));
+  function handleEmployeeUpdated(updated: EmployeeWithSalary) {
+    setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
   }
 
   function handleEmployeeCreated() {
@@ -292,7 +292,7 @@ export function EmployeeTable() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`Edit salary for ${employee.full_name}`}
+                      aria-label={`Edit ${employee.full_name}`}
                       onClick={() => openDetail(employee.id, "edit")}
                     >
                       <Pencil className="size-3.5" />
@@ -308,7 +308,7 @@ export function EmployeeTable() {
         employeeId={selectedEmployeeId}
         mode={detailMode}
         onClose={() => setSelectedEmployeeId(null)}
-        onSalaryUpdated={handleSalaryUpdated}
+        onEmployeeUpdated={handleEmployeeUpdated}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
