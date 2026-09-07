@@ -311,7 +311,7 @@ export function EmployeeTable() {
         onSalaryUpdated={handleSalaryUpdated}
       />
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <span className="font-mono text-xs">
           {total === 0 ? "0 results" : `Showing ${rangeStart}–${rangeEnd} of ${total}`}
         </span>
