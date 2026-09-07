@@ -79,6 +79,39 @@ describe("AnalyticsDashboard", () => {
     expect(screen.queryByText("Total global payroll")).not.toBeInTheDocument();
   });
 
+  it("shows a retry button on a failed first load, and recovers on retry", async () => {
+    mockedGetAnalyticsSummary.mockRejectedValueOnce(new Error("network down"));
+
+    render(<AnalyticsDashboard />);
+
+    await waitFor(() => expect(screen.getByText("Failed to load analytics.")).toBeInTheDocument());
+    const retryButton = screen.getByRole("button", { name: "Retry" });
+
+    mockedGetAnalyticsSummary.mockResolvedValueOnce(mockSummary);
+    await userEvent.click(retryButton);
+
+    expect(await screen.findByText("Total global payroll")).toBeInTheDocument();
+    expect(screen.queryByText("Failed to load analytics.")).not.toBeInTheDocument();
+  });
+
+  it("keeps showing the last summary (with an error banner and retry) when a reload fails", async () => {
+    mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
+    render(<AnalyticsDashboard />);
+    await screen.findByText("Total global payroll");
+
+    mockedGetAnalyticsSummary.mockRejectedValueOnce(new Error("network down"));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Department" }));
+    await user.click(await screen.findByRole("menuitemcheckbox", { name: "Engineering" }));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.getByText("Failed to load analytics.")).toBeInTheDocument());
+    // The last-known-good summary is still on screen, not replaced by a
+    // blank error state.
+    expect(screen.getByText("Total global payroll")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
   it("fetches with all filters empty on initial load", async () => {
     mockedGetAnalyticsSummary.mockResolvedValue(mockSummary);
 

@@ -137,6 +137,7 @@ export function AnalyticsDashboard() {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +157,7 @@ export function AnalyticsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, retryKey]);
 
   function updateFilter<K extends keyof DashboardFilters>(key: K, values: DashboardFilters[K]) {
     setFilters((prev) => ({ ...prev, [key]: values }));
@@ -171,6 +172,11 @@ export function AnalyticsDashboard() {
     setStatus("loading");
   }
 
+  function retry() {
+    setStatus("loading");
+    setRetryKey((key) => key + 1);
+  }
+
   // First load only — once we have a summary to show, a filter-triggered
   // refetch keeps that render (dimmed) instead of wiping the dashboard,
   // so charts never flash blank or jump layout while reloading.
@@ -178,7 +184,14 @@ export function AnalyticsDashboard() {
     return <p className="py-8 text-center text-sm text-muted-foreground">Loading analytics…</p>;
   }
   if (status === "error" && !summary) {
-    return <p className="py-8 text-center text-sm text-destructive">{errorMessage}</p>;
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm">
+        <p className="text-destructive">{errorMessage}</p>
+        <Button variant="outline" size="sm" onClick={retry}>
+          Retry
+        </Button>
+      </div>
+    );
   }
   if (!summary) return null;
 
@@ -210,7 +223,14 @@ export function AnalyticsDashboard() {
         </Button>
       </div>
 
-      {status === "error" && <p className="text-sm text-destructive">{errorMessage}</p>}
+      {status === "error" && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <span>{errorMessage}</span>
+          <Button variant="outline" size="sm" onClick={retry}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       <div className={status === "loading" ? "flex flex-col gap-6 opacity-60 transition-opacity" : "flex flex-col gap-6"}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
